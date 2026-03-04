@@ -3,10 +3,6 @@
 An adversarial seminar web app built on Go/Gin + Postgres + SSE (backend) and
 React/Vite + Chakra UI v3 + Auth0 (frontend).
 
-See [Project Spec.md](Project%20Spec.md) for the full product definition and
-[.github/prompts/plan-seminarWebApp.prompt.md](.github/prompts/plan-seminarWebApp.prompt.md)
-for the phased implementation plan.
-
 ---
 
 ## Prerequisites
