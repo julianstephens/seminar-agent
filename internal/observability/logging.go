@@ -33,7 +33,7 @@ import (
 
 // ginLoggerKey is the key under which the per-request *slog.Logger is stored
 // in the Gin context.
-const ginLoggerKey = "seminar_req_logger"
+const ginLoggerKey = "formation_req_logger"
 
 // ctxLoggerKey is the key used to propagate a *slog.Logger through a standard
 // library context.Context (e.g. when a handler passes ctx into a service).

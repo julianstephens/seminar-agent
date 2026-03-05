@@ -9,7 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/julianstephens/seminar/internal/domain"
+	"github.com/julianstephens/formation/internal/domain"
 )
 
 // SessionRepo handles all database operations for sessions and turns.

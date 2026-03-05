@@ -1,4 +1,4 @@
-module github.com/julianstephens/seminar
+module github.com/julianstephens/formation
 
 go 1.25.5
 

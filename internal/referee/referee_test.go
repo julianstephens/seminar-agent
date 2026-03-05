@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/julianstephens/seminar/internal/referee"
+	"github.com/julianstephens/formation/internal/referee"
 )
 
 // ── HasLocator ────────────────────────────────────────────────────────────────

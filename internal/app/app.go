@@ -13,18 +13,18 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/julianstephens/seminar/internal/agent"
-	"github.com/julianstephens/seminar/internal/agent/providers"
-	"github.com/julianstephens/seminar/internal/auth"
-	"github.com/julianstephens/seminar/internal/config"
-	"github.com/julianstephens/seminar/internal/db"
-	apphttp "github.com/julianstephens/seminar/internal/http"
-	"github.com/julianstephens/seminar/internal/http/handlers"
-	"github.com/julianstephens/seminar/internal/observability"
-	"github.com/julianstephens/seminar/internal/repo"
-	"github.com/julianstephens/seminar/internal/scheduler"
-	"github.com/julianstephens/seminar/internal/service"
-	"github.com/julianstephens/seminar/internal/sse"
+	"github.com/julianstephens/formation/internal/agent"
+	"github.com/julianstephens/formation/internal/agent/providers"
+	"github.com/julianstephens/formation/internal/auth"
+	"github.com/julianstephens/formation/internal/config"
+	"github.com/julianstephens/formation/internal/db"
+	apphttp "github.com/julianstephens/formation/internal/http"
+	"github.com/julianstephens/formation/internal/http/handlers"
+	"github.com/julianstephens/formation/internal/observability"
+	"github.com/julianstephens/formation/internal/repo"
+	"github.com/julianstephens/formation/internal/scheduler"
+	"github.com/julianstephens/formation/internal/service"
+	"github.com/julianstephens/formation/internal/sse"
 )
 
 // App is the top-level application container.

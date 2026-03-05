@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/julianstephens/seminar/internal/agent"
-	"github.com/julianstephens/seminar/internal/domain"
-	"github.com/julianstephens/seminar/internal/observability"
-	"github.com/julianstephens/seminar/internal/referee"
-	"github.com/julianstephens/seminar/internal/repo"
-	"github.com/julianstephens/seminar/internal/sse"
+	"github.com/julianstephens/formation/internal/agent"
+	"github.com/julianstephens/formation/internal/domain"
+	"github.com/julianstephens/formation/internal/observability"
+	"github.com/julianstephens/formation/internal/referee"
+	"github.com/julianstephens/formation/internal/repo"
+	"github.com/julianstephens/formation/internal/sse"
 )
 
 // ── TurnService ───────────────────────────────────────────────────────────────

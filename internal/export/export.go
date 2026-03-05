@@ -9,7 +9,7 @@
 // is needed in the service or handler layers.
 package export
 
-import "github.com/julianstephens/seminar/internal/domain"
+import "github.com/julianstephens/formation/internal/domain"
 
 // SeminarExport is the full denormalized export payload for a seminar.
 // It bundles the seminar record, its complete thesis revision history, and

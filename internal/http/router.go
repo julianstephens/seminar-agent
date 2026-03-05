@@ -8,9 +8,9 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
-	"github.com/julianstephens/seminar/internal/auth"
-	"github.com/julianstephens/seminar/internal/config"
-	"github.com/julianstephens/seminar/internal/observability"
+	"github.com/julianstephens/formation/internal/auth"
+	"github.com/julianstephens/formation/internal/config"
+	"github.com/julianstephens/formation/internal/observability"
 )
 
 // RouteRegistrar is implemented by any handler group that can mount its routes

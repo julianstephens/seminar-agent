@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/julianstephens/seminar/internal/config"
+	"github.com/julianstephens/formation/internal/config"
 )
 
 // Open creates and validates a pgxpool connection pool to Postgres.

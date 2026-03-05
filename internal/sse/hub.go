@@ -28,7 +28,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/julianstephens/seminar/internal/domain"
+	"github.com/julianstephens/formation/internal/domain"
 )
 
 // ── Event types ───────────────────────────────────────────────────────────────

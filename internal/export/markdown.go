@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/julianstephens/seminar/internal/domain"
+	"github.com/julianstephens/formation/internal/domain"
 )
 
 // RenderSeminarMarkdown produces a human-readable Markdown document for a

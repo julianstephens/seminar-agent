@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/julianstephens/seminar/internal/agent"
+	"github.com/julianstephens/formation/internal/agent"
 )
 
 // ── stub provider ─────────────────────────────────────────────────────────────

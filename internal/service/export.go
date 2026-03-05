@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/julianstephens/seminar/internal/export"
-	"github.com/julianstephens/seminar/internal/repo"
+	"github.com/julianstephens/formation/internal/export"
+	"github.com/julianstephens/formation/internal/repo"
 )
 
 // ExportService assembles full denormalized export payloads for seminars and

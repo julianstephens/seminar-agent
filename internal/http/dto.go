@@ -3,7 +3,7 @@ package http
 import (
 	"time"
 
-	"github.com/julianstephens/seminar/internal/domain"
+	"github.com/julianstephens/formation/internal/domain"
 )
 
 // ── Seminar request DTOs ───────────────────────────────────────────────────────

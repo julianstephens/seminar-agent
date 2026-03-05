@@ -8,7 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/julianstephens/seminar/internal/config"
+	"github.com/julianstephens/formation/internal/config"
 )
 
 // Claims are the JWT payload fields we care about.

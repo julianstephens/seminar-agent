@@ -1,9 +1,9 @@
 .PHONY: build test lint fmt clean help install check
 
 # Variables
-BINARY_NAME=seminar
+BINARY_NAME=formation
 BUILD_DIR=bin
-CMD_DIR=./cmd/seminar
+CMD_DIR=./cmd/formation
 VERSION?=0.1.0
 LDFLAGS=-ldflags "-X main.version=$(VERSION)"
 

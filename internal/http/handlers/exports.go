@@ -6,10 +6,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/julianstephens/seminar/internal/auth"
-	"github.com/julianstephens/seminar/internal/export"
-	apphttp "github.com/julianstephens/seminar/internal/http"
-	"github.com/julianstephens/seminar/internal/service"
+	"github.com/julianstephens/formation/internal/auth"
+	"github.com/julianstephens/formation/internal/export"
+	apphttp "github.com/julianstephens/formation/internal/http"
+	"github.com/julianstephens/formation/internal/service"
 )
 
 // ExportHandler serves seminar and session export endpoints.

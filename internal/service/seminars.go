@@ -8,8 +8,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/julianstephens/seminar/internal/domain"
-	"github.com/julianstephens/seminar/internal/repo"
+	"github.com/julianstephens/formation/internal/domain"
+	"github.com/julianstephens/formation/internal/repo"
 )
 
 // validModes is the exhaustive set of allowed seminar modes.

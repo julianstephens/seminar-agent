@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/julianstephens/seminar/internal/auth"
-	apphttp "github.com/julianstephens/seminar/internal/http"
-	"github.com/julianstephens/seminar/internal/service"
-	"github.com/julianstephens/seminar/internal/sse"
+	"github.com/julianstephens/formation/internal/auth"
+	apphttp "github.com/julianstephens/formation/internal/http"
+	"github.com/julianstephens/formation/internal/service"
+	"github.com/julianstephens/formation/internal/sse"
 )
 
 // EventsHandler streams server-sent events for a single session.

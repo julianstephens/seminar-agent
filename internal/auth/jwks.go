@@ -7,7 +7,7 @@ import (
 
 	"github.com/MicahParks/keyfunc/v3"
 
-	"github.com/julianstephens/seminar/internal/config"
+	"github.com/julianstephens/formation/internal/config"
 )
 
 // JWKS wraps a keyfunc.Keyfunc and provides a Stop method to cancel its

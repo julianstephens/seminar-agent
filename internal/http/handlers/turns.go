@@ -6,10 +6,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/julianstephens/seminar/internal/auth"
-	apphttp "github.com/julianstephens/seminar/internal/http"
-	"github.com/julianstephens/seminar/internal/referee"
-	"github.com/julianstephens/seminar/internal/service"
+	"github.com/julianstephens/formation/internal/auth"
+	apphttp "github.com/julianstephens/formation/internal/http"
+	"github.com/julianstephens/formation/internal/referee"
+	"github.com/julianstephens/formation/internal/service"
 )
 
 // TurnHandler exposes the turn-submission route.

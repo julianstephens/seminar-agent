@@ -6,8 +6,8 @@ import (
 
 	"github.com/joho/godotenv"
 
-	"github.com/julianstephens/seminar/internal/app"
-	"github.com/julianstephens/seminar/internal/config"
+	"github.com/julianstephens/formation/internal/app"
+	"github.com/julianstephens/formation/internal/config"
 )
 
 func main() {

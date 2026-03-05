@@ -10,8 +10,8 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 
-	"github.com/julianstephens/seminar/internal/config"
-	"github.com/julianstephens/seminar/migrations"
+	"github.com/julianstephens/formation/internal/config"
+	"github.com/julianstephens/formation/migrations"
 )
 
 // Migrate runs all pending up migrations against the database.

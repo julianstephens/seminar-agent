@@ -18,10 +18,10 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/julianstephens/seminar/internal/config"
-	"github.com/julianstephens/seminar/internal/db"
-	"github.com/julianstephens/seminar/internal/domain"
-	"github.com/julianstephens/seminar/internal/repo"
+	"github.com/julianstephens/formation/internal/config"
+	"github.com/julianstephens/formation/internal/db"
+	"github.com/julianstephens/formation/internal/domain"
+	"github.com/julianstephens/formation/internal/repo"
 )
 
 // ── test harness ──────────────────────────────────────────────────────────────

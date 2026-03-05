@@ -46,7 +46,7 @@ psql $DATABASE_URL < migrations/0001_init_up.sql
 
 # Verify tables
 psql $DATABASE_URL -c "\dt"
-# Expected: seminars, seminar_thesis_history, sessions, turns
+# Expected: seminars, sessions, turns
 
 # Down migration
 psql $DATABASE_URL < migrations/0001_init_down.sql

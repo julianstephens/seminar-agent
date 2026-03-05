@@ -9,7 +9,7 @@ import (
 
 	openai "github.com/sashabaranov/go-openai"
 
-	"github.com/julianstephens/seminar/internal/agent"
+	"github.com/julianstephens/formation/internal/agent"
 )
 
 // OpenAI implements agent.Provider using the OpenAI Chat Completions API.

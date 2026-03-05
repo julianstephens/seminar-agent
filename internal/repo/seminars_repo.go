@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/julianstephens/seminar/internal/domain"
+	"github.com/julianstephens/formation/internal/domain"
 )
 
 // SeminarRepo handles all database operations for seminars and thesis history.

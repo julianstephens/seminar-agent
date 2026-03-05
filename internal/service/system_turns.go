@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/julianstephens/seminar/internal/domain"
-	"github.com/julianstephens/seminar/internal/repo"
+	"github.com/julianstephens/formation/internal/domain"
+	"github.com/julianstephens/formation/internal/repo"
 )
 
 // phaseChangeMessages maps each target phase to a human-readable announcement

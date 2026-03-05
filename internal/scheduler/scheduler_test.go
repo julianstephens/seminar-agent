@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/julianstephens/seminar/internal/domain"
-	"github.com/julianstephens/seminar/internal/observability"
-	"github.com/julianstephens/seminar/internal/scheduler"
+	"github.com/julianstephens/formation/internal/domain"
+	"github.com/julianstephens/formation/internal/observability"
+	"github.com/julianstephens/formation/internal/scheduler"
 )
 
 // ── helpers ───────────────────────────────────────────────────────────────────

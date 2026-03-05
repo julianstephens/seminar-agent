@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/goccy/go-yaml"
-	"github.com/julianstephens/seminar/internal/domain"
+	"github.com/julianstephens/formation/internal/domain"
 )
 
 //go:embed prompts/canonical.yml prompts/rewrite.yml

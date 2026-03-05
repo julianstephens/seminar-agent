@@ -8,8 +8,8 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/julianstephens/seminar/internal/domain"
-	"github.com/julianstephens/seminar/internal/repo"
+	"github.com/julianstephens/formation/internal/domain"
+	"github.com/julianstephens/formation/internal/repo"
 )
 
 // SessionService implements all business operations for sessions.

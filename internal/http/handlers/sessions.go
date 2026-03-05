@@ -5,10 +5,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/julianstephens/seminar/internal/auth"
-	"github.com/julianstephens/seminar/internal/domain"
-	apphttp "github.com/julianstephens/seminar/internal/http"
-	"github.com/julianstephens/seminar/internal/service"
+	"github.com/julianstephens/formation/internal/auth"
+	"github.com/julianstephens/formation/internal/domain"
+	apphttp "github.com/julianstephens/formation/internal/http"
+	"github.com/julianstephens/formation/internal/service"
 )
 
 // SessionHandler exposes session-related routes.

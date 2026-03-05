@@ -1,21 +1,23 @@
 services:
   db:
+    container_name: formation_db
     image: postgres:15
     environment:
-      POSTGRES_USER: seminar
-      POSTGRES_PASSWORD: seminar
-      POSTGRES_DB: seminar
+      POSTGRES_USER: formation
+      POSTGRES_PASSWORD: formation
+      POSTGRES_DB: formation
     ports:
       - "5432:5432"
     volumes:
-      - seminar_db_data:/var/lib/postgresql/data
+      - formation_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U seminar"]
+      test: ["CMD-SHELL", "pg_isready -U formation"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   api:
+    container_name: formation_api
     build:
       context: .
       dockerfile: Dockerfile
@@ -23,12 +25,13 @@ services:
       - "8080:8080"
     env_file: backend.env
     environment:
-      DATABASE_URL: postgres://seminar:seminar@db:5432/seminar?sslmode=disable
+      DATABASE_URL: postgres://formation:formation@db:5432/formation?sslmode=disable
     depends_on:
       db:
         condition: service_healthy
 
   web:
+    container_name: formation_web
     build:
       context: ./web
       dockerfile: Dockerfile
@@ -41,4 +44,4 @@ services:
       - api
 
 volumes:
-  seminar_db_data:
+  formation_data:

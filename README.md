@@ -1,6 +1,6 @@
-# Seminar
+# Formation
 
-An adversarial seminar web app built on Go/Gin + Postgres + SSE (backend) and
+A formation web app providing seminar and tutorial agents built on Go/Gin + Postgres + SSE (backend) and
 React/Vite + Chakra UI v3 + Auth0 (frontend).
 
 ---
@@ -30,10 +30,10 @@ cp web.env.example web/.env.local    # fill in Auth0 SPA values
 
 ```bash
 # Docker one-liner
-docker run -d --name seminar-db \
-  -e POSTGRES_USER=seminar \
-  -e POSTGRES_PASSWORD=seminar \
-  -e POSTGRES_DB=seminar \
+docker run -d --name formation-db \
+  -e POSTGRES_USER=formation \
+  -e POSTGRES_PASSWORD=formation \
+  -e POSTGRES_DB=formation \
   -p 5432:5432 postgres:15
 ```
 
@@ -75,25 +75,3 @@ web/                        — React/Vite frontend
 backend.env.example         — backend env template
 web.env.example             — frontend env template
 ```
-
----
-
-## Implementation phases
-
-See [plan-seminarWebApp.prompt.md](.github/prompts/plan-seminarWebApp.prompt.md).
-
-| # | Phase | Status |
-|---|-------|--------|
-| 1 | Foundation & project layout | ✅ done |
-| 2 | DB schema + migrations | ⬜ |
-| 3 | Auth + ownership enforcement | ⬜ |
-| 4 | Seminars API | ⬜ |
-| 5 | Session lifecycle API | ⬜ |
-| 6 | Authoritative scheduler | ⬜ |
-| 7 | SSE hub + realtime events | ⬜ |
-| 8 | Turn pipeline + referee | ⬜ |
-| 9 | Agent client + compliance rewrite | ⬜ |
-| 10 | Export endpoints | ⬜ |
-| 11 | Frontend pages + data layer | ⬜ |
-| 12 | Session runner UX (SSE) | ⬜ |
-| 13 | Hardening + acceptance validation | ⬜ |
