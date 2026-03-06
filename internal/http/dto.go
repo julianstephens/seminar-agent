@@ -207,3 +207,64 @@ type SubmitTutorialTurnResponse struct {
 	UserTurn  TutorialTurnResponse  `json:"user_turn"`
 	AgentTurn *TutorialTurnResponse `json:"agent_turn,omitempty"`
 }
+
+// ── Diagnostic response DTOs ───────────────────────────────────────────────────
+
+// DiagnosticEntryResponse is the JSON representation of a diagnostic entry.
+type DiagnosticEntryResponse struct {
+	ID                string                      `json:"id"`
+	TutorialID        string                      `json:"tutorial_id"`
+	TutorialSessionID string                      `json:"tutorial_session_id"`
+	WeekOf            time.Time                   `json:"week_of"`
+	PatternCode       string                      `json:"pattern_code"`
+	Severity          int                         `json:"severity"`
+	Status            string                      `json:"status"`
+	Evidence          []domain.DiagnosticEvidence `json:"evidence"`
+	Notes             string                      `json:"notes,omitempty"`
+	CreatedAt         time.Time                   `json:"created_at"`
+	UpdatedAt         time.Time                   `json:"updated_at"`
+}
+
+// PatternSummaryItemResponse is the JSON representation of a pattern summary item.
+type PatternSummaryItemResponse struct {
+	PatternCode  string `json:"pattern_code"`
+	Occurrences  int    `json:"occurrences"`
+	LastSeenWeek string `json:"last_seen_week"`
+	Trend        string `json:"trend"`
+}
+
+// ProblemSetTaskResponse is the JSON representation of a problem set task.
+type ProblemSetTaskResponse struct {
+	PatternCode string `json:"pattern_code"`
+	Title       string `json:"title"`
+	Description string `json:"description,omitempty"`
+	Prompt      string `json:"prompt,omitempty"`
+}
+
+// ProblemSetResponse is the JSON representation of a problem set.
+type ProblemSetResponse struct {
+	ID                    string                   `json:"id"`
+	TutorialID            string                   `json:"tutorial_id"`
+	WeekOf                time.Time                `json:"week_of"`
+	AssignedFromSessionID string                   `json:"assigned_from_session_id,omitempty"`
+	Status                string                   `json:"status"`
+	Tasks                 []ProblemSetTaskResponse `json:"tasks"`
+	ReviewNotes           string                   `json:"review_notes,omitempty"`
+	CreatedAt             time.Time                `json:"created_at"`
+	UpdatedAt             time.Time                `json:"updated_at"`
+}
+
+// ListDiagnosticsResponse is returned by GET /v1/tutorials/:id/diagnostics.
+type ListDiagnosticsResponse struct {
+	Entries []DiagnosticEntryResponse `json:"entries"`
+}
+
+// DiagnosticSummaryResponse is returned by GET /v1/tutorials/:id/diagnostics/summary.
+type DiagnosticSummaryResponse struct {
+	Items []PatternSummaryItemResponse `json:"items"`
+}
+
+// ListProblemSetsResponse is returned by GET /v1/tutorials/:id/problem-sets.
+type ListProblemSetsResponse struct {
+	ProblemSets []ProblemSetResponse `json:"problem_sets"`
+}

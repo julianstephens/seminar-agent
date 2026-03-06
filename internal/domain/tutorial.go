@@ -86,16 +86,17 @@ func (s *TutorialSession) IsTerminal() bool {
 type ArtifactKind string
 
 const (
-	ArtifactKindSummary    ArtifactKind = "summary"
-	ArtifactKindNotes      ArtifactKind = "notes"
-	ArtifactKindProblemSet ArtifactKind = "problem_set"
-	ArtifactKindDiagnostic ArtifactKind = "diagnostic"
+	ArtifactKindSummary            ArtifactKind = "summary"
+	ArtifactKindNotes              ArtifactKind = "notes"
+	ArtifactKindProblemSet         ArtifactKind = "problem_set"
+	ArtifactKindProblemSetResponse ArtifactKind = "problem_set_response"
+	ArtifactKindDiagnostic         ArtifactKind = "diagnostic"
 )
 
 // ValidArtifactKind reports whether k is a recognized kind value.
 func ValidArtifactKind(k ArtifactKind) bool {
 	switch k {
-	case ArtifactKindSummary, ArtifactKindNotes, ArtifactKindProblemSet, ArtifactKindDiagnostic:
+	case ArtifactKindSummary, ArtifactKindNotes, ArtifactKindProblemSet, ArtifactKindProblemSetResponse, ArtifactKindDiagnostic:
 		return true
 	}
 	return false

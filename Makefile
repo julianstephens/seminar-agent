@@ -41,6 +41,12 @@ test-coverage:
 	@go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report generated: coverage.html"
 
+## seed: Seed the database with sample data
+seed:
+	@echo "Seeding database..."
+	@set -a && . ./backend.env && set +a && go run cmd/seed/main.go
+	@echo "Database seeded successfully"
+
 ## fmt: Format code
 fmt:
 	@echo "Formatting code..."

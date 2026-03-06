@@ -402,6 +402,270 @@ func (r *TutorialRepo) ListTutorialTurns(
 	return result, nil
 }
 
+// ── Diagnostic Entries ────────────────────────────────────────────────────────
+
+// CreateDiagnosticEntry inserts a new diagnostic entry and returns the fully-populated record.
+func (r *TutorialRepo) CreateDiagnosticEntry(
+	ctx context.Context,
+	ownerSub string,
+	entry domain.DiagnosticEntry,
+) (*domain.DiagnosticEntry, error) {
+	const q = `
+		INSERT INTO diagnostic_entries
+			(tutorial_id, tutorial_session_id, owner_sub, week_of, 
+			 pattern_code, severity, status, evidence, notes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING id, tutorial_id, tutorial_session_id, owner_sub, week_of,
+		          pattern_code, severity, status, evidence, 
+		          COALESCE(notes, ''), created_at, updated_at`
+
+	row := r.Pool.QueryRow(ctx, q,
+		entry.TutorialID, entry.TutorialSessionID, ownerSub, entry.WeekOf,
+		entry.PatternCode, entry.Severity, entry.Status, entry.Evidence,
+		nvlTutStr(entry.Notes))
+	return scanDiagnosticEntry(row)
+}
+
+// ListDiagnosticEntriesByTutorial returns all diagnostic entries for a tutorial.
+func (r *TutorialRepo) ListDiagnosticEntriesByTutorial(
+	ctx context.Context,
+	tutorialID, ownerSub string,
+) ([]domain.DiagnosticEntry, error) {
+	const q = `
+		SELECT id, tutorial_id, tutorial_session_id, owner_sub, week_of,
+		       pattern_code, severity, status, evidence,
+		       COALESCE(notes, ''), created_at, updated_at
+		FROM diagnostic_entries
+		WHERE tutorial_id = $1 AND owner_sub = $2
+		ORDER BY week_of DESC, created_at DESC`
+
+	rows, err := r.Pool.Query(ctx, q, tutorialID, ownerSub)
+	if err != nil {
+		return nil, fmt.Errorf("list diagnostic entries query: %w", err)
+	}
+	defer rows.Close()
+
+	var result []domain.DiagnosticEntry
+	for rows.Next() {
+		e, err := scanDiagnosticEntry(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, *e)
+	}
+	if result == nil {
+		result = []domain.DiagnosticEntry{}
+	}
+	return result, rows.Err()
+}
+
+// ListDiagnosticEntriesByWeek returns diagnostic entries for a specific week.
+func (r *TutorialRepo) ListDiagnosticEntriesByWeek(
+	ctx context.Context,
+	tutorialID, ownerSub string,
+	weekOf string,
+) ([]domain.DiagnosticEntry, error) {
+	const q = `
+		SELECT id, tutorial_id, tutorial_session_id, owner_sub, week_of,
+		       pattern_code, severity, status, evidence,
+		       COALESCE(notes, ''), created_at, updated_at
+		FROM diagnostic_entries
+		WHERE tutorial_id = $1 AND owner_sub = $2 AND week_of = $3
+		ORDER BY created_at DESC`
+
+	rows, err := r.Pool.Query(ctx, q, tutorialID, ownerSub, weekOf)
+	if err != nil {
+		return nil, fmt.Errorf("list diagnostic entries by week query: %w", err)
+	}
+	defer rows.Close()
+
+	var result []domain.DiagnosticEntry
+	for rows.Next() {
+		e, err := scanDiagnosticEntry(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, *e)
+	}
+	if result == nil {
+		result = []domain.DiagnosticEntry{}
+	}
+	return result, rows.Err()
+}
+
+// ListRecentDiagnosticEntries returns the N most recent diagnostic entries for a tutorial.
+func (r *TutorialRepo) ListRecentDiagnosticEntries(
+	ctx context.Context,
+	tutorialID, ownerSub string,
+	limit int,
+) ([]domain.DiagnosticEntry, error) {
+	const q = `
+		SELECT id, tutorial_id, tutorial_session_id, owner_sub, week_of,
+		       pattern_code, severity, status, evidence,
+		       COALESCE(notes, ''), created_at, updated_at
+		FROM diagnostic_entries
+		WHERE tutorial_id = $1 AND owner_sub = $2
+		ORDER BY created_at DESC
+		LIMIT $3`
+
+	rows, err := r.Pool.Query(ctx, q, tutorialID, ownerSub, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list recent diagnostic entries query: %w", err)
+	}
+	defer rows.Close()
+
+	var result []domain.DiagnosticEntry
+	for rows.Next() {
+		e, err := scanDiagnosticEntry(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, *e)
+	}
+	if result == nil {
+		result = []domain.DiagnosticEntry{}
+	}
+	return result, rows.Err()
+}
+
+// UpdateDiagnosticEntryStatus updates the status field of a diagnostic entry.
+func (r *TutorialRepo) UpdateDiagnosticEntryStatus(
+	ctx context.Context,
+	id, ownerSub string,
+	status domain.DiagnosticStatus,
+) (*domain.DiagnosticEntry, error) {
+	const q = `
+		UPDATE diagnostic_entries
+		SET status = $3, updated_at = now()
+		WHERE id = $1 AND owner_sub = $2
+		RETURNING id, tutorial_id, tutorial_session_id, owner_sub, week_of,
+		          pattern_code, severity, status, evidence,
+		          COALESCE(notes, ''), created_at, updated_at`
+
+	row := r.Pool.QueryRow(ctx, q, id, ownerSub, status)
+	return scanDiagnosticEntry(row)
+}
+
+// ── Problem Sets ──────────────────────────────────────────────────────────────
+
+// CreateProblemSet inserts a new problem set and returns the fully-populated record.
+func (r *TutorialRepo) CreateProblemSet(
+	ctx context.Context,
+	ownerSub string,
+	ps domain.ProblemSet,
+) (*domain.ProblemSet, error) {
+	const q = `
+		INSERT INTO problem_sets
+			(tutorial_id, owner_sub, week_of, assigned_from_session_id, 
+			 status, tasks, review_notes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, tutorial_id, owner_sub, week_of, 
+		          COALESCE(assigned_from_session_id, ''), status, tasks,
+		          COALESCE(review_notes, ''), created_at, updated_at`
+
+	row := r.Pool.QueryRow(ctx, q,
+		ps.TutorialID, ownerSub, ps.WeekOf, nvlTutStr(ps.AssignedFromSessionID),
+		ps.Status, ps.Tasks, nvlTutStr(ps.ReviewNotes))
+	return scanProblemSet(row)
+}
+
+// GetProblemSetByWeek returns the problem set for a specific tutorial and week.
+func (r *TutorialRepo) GetProblemSetByWeek(
+	ctx context.Context,
+	tutorialID, ownerSub, weekOf string,
+) (*domain.ProblemSet, error) {
+	const q = `
+		SELECT id, tutorial_id, owner_sub, week_of,
+		       COALESCE(assigned_from_session_id, ''), status, tasks,
+		       COALESCE(review_notes, ''), created_at, updated_at
+		FROM problem_sets
+		WHERE tutorial_id = $1 AND owner_sub = $2 AND week_of = $3`
+
+	row := r.Pool.QueryRow(ctx, q, tutorialID, ownerSub, weekOf)
+	return scanProblemSet(row)
+}
+
+// ListProblemSets returns all problem sets for a tutorial.
+func (r *TutorialRepo) ListProblemSets(
+	ctx context.Context,
+	tutorialID, ownerSub string,
+) ([]domain.ProblemSet, error) {
+	const q = `
+		SELECT id, tutorial_id, owner_sub, week_of,
+		       COALESCE(assigned_from_session_id, ''), status, tasks,
+		       COALESCE(review_notes, ''), created_at, updated_at
+		FROM problem_sets
+		WHERE tutorial_id = $1 AND owner_sub = $2
+		ORDER BY week_of DESC`
+
+	rows, err := r.Pool.Query(ctx, q, tutorialID, ownerSub)
+	if err != nil {
+		return nil, fmt.Errorf("list problem sets query: %w", err)
+	}
+	defer rows.Close()
+
+	var result []domain.ProblemSet
+	for rows.Next() {
+		ps, err := scanProblemSet(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, *ps)
+	}
+	if result == nil {
+		result = []domain.ProblemSet{}
+	}
+	return result, rows.Err()
+}
+
+// LinkProblemSetPattern creates a link between a problem set and a diagnostic entry.
+func (r *TutorialRepo) LinkProblemSetPattern(
+	ctx context.Context,
+	problemSetID, diagnosticEntryID, patternCode string,
+) error {
+	const q = `
+		INSERT INTO problem_set_pattern_links
+			(problem_set_id, diagnostic_entry_id, pattern_code)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (problem_set_id, diagnostic_entry_id) DO NOTHING`
+
+	_, err := r.Pool.Exec(ctx, q, problemSetID, diagnosticEntryID, patternCode)
+	if err != nil {
+		return fmt.Errorf("link problem set pattern: %w", err)
+	}
+	return nil
+}
+
+// ListPatternLinksForProblemSet returns all diagnostic entry IDs linked to a problem set.
+func (r *TutorialRepo) ListPatternLinksForProblemSet(
+	ctx context.Context,
+	problemSetID string,
+) ([]domain.ProblemSetPatternLink, error) {
+	const q = `
+		SELECT problem_set_id, diagnostic_entry_id, pattern_code
+		FROM problem_set_pattern_links
+		WHERE problem_set_id = $1`
+
+	rows, err := r.Pool.Query(ctx, q, problemSetID)
+	if err != nil {
+		return nil, fmt.Errorf("list pattern links query: %w", err)
+	}
+	defer rows.Close()
+
+	var result []domain.ProblemSetPatternLink
+	for rows.Next() {
+		var link domain.ProblemSetPatternLink
+		if err := rows.Scan(&link.ProblemSetID, &link.DiagnosticEntryID, &link.PatternCode); err != nil {
+			return nil, fmt.Errorf("scan pattern link: %w", err)
+		}
+		result = append(result, link)
+	}
+	if result == nil {
+		result = []domain.ProblemSetPatternLink{}
+	}
+	return result, rows.Err()
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 type tutorialScanner interface {
@@ -488,6 +752,49 @@ func scanTutorialTurn(row tutorialTurnScanner) (*domain.TutorialTurn, error) {
 		return nil, fmt.Errorf("scan tutorial turn: %w", err)
 	}
 	return &t, nil
+}
+
+type diagnosticEntryScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanDiagnosticEntry(row diagnosticEntryScanner) (*domain.DiagnosticEntry, error) {
+	var e domain.DiagnosticEntry
+	var patternCode, status string
+	err := row.Scan(
+		&e.ID, &e.TutorialID, &e.TutorialSessionID, &e.OwnerSub, &e.WeekOf,
+		&patternCode, &e.Severity, &status, &e.Evidence,
+		&e.Notes, &e.CreatedAt, &e.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("scan diagnostic entry: %w", err)
+	}
+	e.PatternCode = domain.DiagnosticPatternCode(patternCode)
+	e.Status = domain.DiagnosticStatus(status)
+	return &e, nil
+}
+
+type problemSetScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanProblemSet(row problemSetScanner) (*domain.ProblemSet, error) {
+	var ps domain.ProblemSet
+	err := row.Scan(
+		&ps.ID, &ps.TutorialID, &ps.OwnerSub, &ps.WeekOf,
+		&ps.AssignedFromSessionID, &ps.Status, &ps.Tasks,
+		&ps.ReviewNotes, &ps.CreatedAt, &ps.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("scan problem set: %w", err)
+	}
+	return &ps, nil
 }
 
 // nvlTutStr converts an empty string to nil so pgx stores NULL for nullable columns.

@@ -119,13 +119,15 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 
 	// 11. Wire tutorial repositories, services, and handlers.
 	tutorialRepo := repo.NewTutorialRepo(base)
+	diagnosticLedgerSvc := service.NewDiagnosticLedgerService(tutorialRepo)
 	tutorialSvc := service.NewTutorialService(tutorialRepo)
 	tutorialSessionSvc := service.NewTutorialSessionService(tutorialRepo)
 	artifactSvc := service.NewArtifactService(tutorialRepo)
-	tutorialTurnSvc := service.NewTutorialTurnService(tutorialRepo, tutorialAssembler, hub, openaiProvider)
+	tutorialTurnSvc := service.NewTutorialTurnService(tutorialRepo, tutorialAssembler, hub, openaiProvider, diagnosticLedgerSvc)
 	tutorialHandler := handlers.NewTutorialHandler(tutorialSvc, tutorialSessionSvc)
 	tutorialSessionHandler := handlers.NewTutorialSessionHandler(tutorialSessionSvc, artifactSvc, tutorialTurnSvc)
 	tutorialSessionEventsHandler := handlers.NewTutorialSessionEventsHandler(hub, tutorialSessionSvc)
+	tutorialDiagnosticsHandler := handlers.NewTutorialDiagnosticsHandler(diagnosticLedgerSvc, tutorialRepo)
 
 	// 9. Build HTTP server.
 	router := apphttp.NewRouter(apphttp.RouterDeps{
@@ -140,6 +142,7 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 		Tutorials:             tutorialHandler,
 		TutorialSessions:      tutorialSessionHandler,
 		TutorialSessionEvents: tutorialSessionEventsHandler,
+		TutorialDiagnostics:   tutorialDiagnosticsHandler,
 	})
 
 	srv := &http.Server{

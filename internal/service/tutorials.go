@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/julianstephens/formation/internal/agent"
 	"github.com/julianstephens/formation/internal/domain"
@@ -386,10 +387,11 @@ func (s *ArtifactService) DeleteArtifact(ctx context.Context, id, ownerSub strin
 
 // TutorialTurnService implements all business operations for tutorial session turns.
 type TutorialTurnService struct {
-	repo      *repo.TutorialRepo
-	assembler *agent.TutorialAssembler
-	hub       *sse.Hub
-	agent     agent.Provider // may be nil when no LLM is configured
+	repo          *repo.TutorialRepo
+	assembler     *agent.TutorialAssembler
+	hub           *sse.Hub
+	agent         agent.Provider // may be nil when no LLM is configured
+	diagnosticSvc *DiagnosticLedgerService
 }
 
 // NewTutorialTurnService constructs a TutorialTurnService backed by the given repository.
@@ -399,12 +401,14 @@ func NewTutorialTurnService(
 	assembler *agent.TutorialAssembler,
 	hub *sse.Hub,
 	provider agent.Provider,
+	diagnosticSvc *DiagnosticLedgerService,
 ) *TutorialTurnService {
 	return &TutorialTurnService{
-		repo:      r,
-		assembler: assembler,
-		hub:       hub,
-		agent:     provider,
+		repo:          r,
+		assembler:     assembler,
+		hub:           hub,
+		agent:         provider,
+		diagnosticSvc: diagnosticSvc,
 	}
 }
 
@@ -497,16 +501,91 @@ func (s *TutorialTurnService) SubmitTutorialTurn(
 	// Format artifacts for the prompt.
 	artifactsText := formatArtifacts(artifacts)
 
+	// ── Diagnostic Ledger Integration ──
+
+	// Determine session kind and task mode
+	sessionKind := string(sess.Kind)
+	if sessionKind == "" {
+		sessionKind = "diagnostic" // Default to diagnostic
+	}
+
+	// Determine task mode based on session kind and presence of prior problem set
+	taskMode := "review_only"
+	weekOf := sess.StartedAt.Truncate(24 * time.Hour)
+
+	var previousProblemSet *domain.ProblemSet
+	var priorDiagnosticsSummary string
+	var problemSetResponseText string
+
+	// Load previous problem set if this is an extended session
+	if sess.Kind == domain.TutorialSessionKindExtended {
+		previousProblemSet, err = s.diagnosticSvc.GetPreviousProblemSet(ctx, sess.TutorialID, ownerSub, weekOf)
+		if err != nil {
+			logger := observability.LoggerFromContext(ctx)
+			logger.Error("failed to load previous problem set",
+				"session_id", sessionID,
+				"error", err.Error(),
+			)
+		}
+
+		if previousProblemSet != nil {
+			taskMode = "problemset_review"
+
+			// Look for problem set response artifact
+			for _, art := range artifacts {
+				if art.Kind == domain.ArtifactKindProblemSetResponse {
+					break
+				}
+			}
+		} else {
+			// No previous problem set, so this is a generation session
+			taskMode = "problemset_generation"
+		}
+	}
+
+	// Load prior diagnostics summary
+	patternSummary, err := s.diagnosticSvc.BuildPatternSummary(ctx, sess.TutorialID, ownerSub, 4)
+	if err != nil {
+		logger := observability.LoggerFromContext(ctx)
+		logger.Error("failed to build pattern summary",
+			"session_id", sessionID,
+			"error", err.Error(),
+		)
+	} else {
+		priorDiagnosticsSummary = formatPatternSummary(patternSummary)
+	}
+
+	// Load current week diagnostics
+	weekSummary, err := s.diagnosticSvc.BuildCurrentWeekSummary(ctx, sess.TutorialID, ownerSub, weekOf)
+	if err != nil {
+		logger := observability.LoggerFromContext(ctx)
+		logger.Error("failed to build week summary",
+			"session_id", sessionID,
+			"error", err.Error(),
+		)
+	} else {
+		// Append current week details to prior diagnostics summary
+		if len(weekSummary.Entries) > 0 {
+			priorDiagnosticsSummary += formatWeekSummary(weekSummary)
+		}
+	}
+
+	// Format previous problem set if present
+	previousProblemSetText := ""
+	if previousProblemSet != nil {
+		previousProblemSetText = formatProblemSet(*previousProblemSet)
+	}
+
 	// Assemble the prompt.
 	messages, err := s.assembler.AssembleTutorial(agent.TutorialAssembleParams{
 		TutorialTitle:      tutorial.Title,
-		SessionKind:        "diagnostic",  // TODO: determine from session metadata
-		TaskMode:           "review_only", // TODO: determine from session state
-		WeekOf:             sess.StartedAt.Format("2006-01-02"),
+		SessionKind:        sessionKind,
+		TaskMode:           taskMode,
+		WeekOf:             weekOf.Format("2006-01-02"),
 		Artifacts:          artifactsText,
-		PriorDiagnostics:   "", // TODO: load from previous sessions
-		PreviousProblemSet: "", // TODO: load from previous sessions
-		ProblemSetResponse: "", // TODO: load from artifacts
+		PriorDiagnostics:   priorDiagnosticsSummary,
+		PreviousProblemSet: previousProblemSetText,
+		ProblemSetResponse: problemSetResponseText,
 		Turns:              priorTurns,
 	})
 	if err != nil {
@@ -529,11 +608,56 @@ func (s *TutorialTurnService) SubmitTutorialTurn(
 		return result, nil // Return user turn even if agent call fails
 	}
 
-	// Create the agent turn.
+	// ── Parse and persist diagnostic entries ──
+
+	diagnosticInputs, err := ParseDiagnosticJSON(agentText)
+	if err != nil {
+		logger := observability.LoggerFromContext(ctx)
+		logger.Error("failed to parse diagnostic JSON block",
+			"session_id", sessionID,
+			"error", err.Error(),
+		)
+		// Continue without diagnostics rather than failing
+	} else if len(diagnosticInputs) > 0 {
+		diagnosticEntries, err := ConvertToDiagnosticEntries(diagnosticInputs)
+		if err != nil {
+			logger := observability.LoggerFromContext(ctx)
+			logger.Error("failed to convert diagnostic entries",
+				"session_id", sessionID,
+				"error", err.Error(),
+			)
+		} else {
+			err = s.diagnosticSvc.RecordEntries(ctx, ownerSub, sess.TutorialID, sessionID, weekOf, diagnosticEntries)
+			if err != nil {
+				logger := observability.LoggerFromContext(ctx)
+				logger.Error("failed to record diagnostic entries",
+					"session_id", sessionID,
+					"error", err.Error(),
+				)
+			}
+		}
+	}
+
+	// Strip the diagnostic JSON block from the agent response before storing
+	agentTextStripped := StripDiagnosticBlock(agentText)
+
+	// Update pattern statuses after extended review
+	if sess.Kind == domain.TutorialSessionKindExtended {
+		err = s.diagnosticSvc.UpdatePatternStatuses(ctx, sess.TutorialID, ownerSub, weekOf)
+		if err != nil {
+			logger := observability.LoggerFromContext(ctx)
+			logger.Error("failed to update pattern statuses",
+				"session_id", sessionID,
+				"error", err.Error(),
+			)
+		}
+	}
+
+	// Create the agent turn with the stripped text.
 	agentTurn := domain.TutorialTurn{
 		SessionID: sessionID,
 		Speaker:   "agent",
-		Text:      agentText,
+		Text:      agentTextStripped,
 	}
 	agentCreated, err := s.repo.CreateTutorialTurn(ctx, sessionID, ownerSub, agentTurn)
 	if err != nil {
@@ -580,5 +704,67 @@ func formatArtifacts(artifacts []domain.Artifact) string {
 		sb.WriteString(fmt.Sprintf("--- %s: %s ---\n", art.Kind, art.Title))
 		sb.WriteString(art.Content)
 	}
+	return sb.String()
+}
+
+// formatSingleArtifact formats a single artifact for the prompt.
+func formatSingleArtifact(art domain.Artifact) string {
+	return fmt.Sprintf("--- %s: %s ---\n%s", art.Kind, art.Title, art.Content)
+}
+
+// formatPatternSummary converts a pattern summary into prompt-ready text.
+func formatPatternSummary(summary PatternSummary) string {
+	if len(summary.Items) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("PATTERN LEDGER\n\n")
+	sb.WriteString("Recurring patterns across the last 4 weeks:\n")
+
+	for _, item := range summary.Items {
+		sb.WriteString(fmt.Sprintf("- %s — %d occurrences — %s (last seen: %s)\n",
+			item.PatternCode, item.Occurrences, item.Trend, item.LastSeenWeek))
+	}
+
+	return sb.String()
+}
+
+// formatWeekSummary appends current week diagnostic details to a pattern summary.
+func formatWeekSummary(summary WeekSummary) string {
+	if len(summary.Entries) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("\n\nCurrent week diagnostics:\n")
+
+	for _, entry := range summary.Entries {
+		sb.WriteString(fmt.Sprintf("- %s (severity %d) observed", entry.PatternCode, entry.Severity))
+		if len(entry.Evidence) > 0 {
+			sb.WriteString(fmt.Sprintf(" in %s", entry.Evidence[0].ArtifactTitle))
+		}
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
+}
+
+// formatProblemSet converts a problem set into prompt-ready text.
+func formatProblemSet(ps domain.ProblemSet) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("PREVIOUS PROBLEM SET (Week of %s)\n\n", ps.WeekOf.Format("2006-01-02")))
+
+	for i, task := range ps.Tasks {
+		sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, task.Title))
+		sb.WriteString(fmt.Sprintf("   Pattern: %s\n", task.PatternCode))
+		if task.Description != "" {
+			sb.WriteString(fmt.Sprintf("   %s\n", task.Description))
+		}
+		if i < len(ps.Tasks)-1 {
+			sb.WriteString("\n")
+		}
+	}
+
 	return sb.String()
 }

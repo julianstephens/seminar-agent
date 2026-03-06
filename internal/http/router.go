@@ -56,6 +56,7 @@ type RouterDeps struct {
 	Tutorials             TutorialRouteRegistrar
 	TutorialSessions      RouteRegistrar
 	TutorialSessionEvents RouteRegistrar
+	TutorialDiagnostics   RouteRegistrar
 }
 
 // NewRouter builds and returns the configured Gin engine.
@@ -146,6 +147,14 @@ func NewRouter(deps RouterDeps) *gin.Engine {
 		tutorialsGroup.DELETE("/:id", placeholder("delete tutorial"))
 		tutorialsGroup.GET("/:id/sessions", placeholder("list tutorial sessions"))
 		tutorialsGroup.POST("/:id/sessions", placeholder("create tutorial session"))
+	}
+	// Tutorial diagnostics and problem sets
+	if deps.TutorialDiagnostics != nil {
+		deps.TutorialDiagnostics.Register(tutorialsGroup)
+	} else {
+		tutorialsGroup.GET("/:id/diagnostics", placeholder("list diagnostics"))
+		tutorialsGroup.GET("/:id/diagnostics/summary", placeholder("get diagnostic summary"))
+		tutorialsGroup.GET("/:id/problem-sets", placeholder("list problem sets"))
 	}
 
 	// Tutorial Sessions (top-level operations)
