@@ -117,17 +117,35 @@ export interface UpdateTutorialInput {
 
 export type TutorialSessionStatus = "in_progress" | "complete" | "abandoned";
 
+export type TutorialSessionKind =
+  | "diagnostic_tuesday"
+  | "diagnostic_thursday"
+  | "extended_sunday";
+
 export interface TutorialSession {
   id: string;
   tutorial_id: string;
   status: TutorialSessionStatus;
+  kind?: TutorialSessionKind;
   notes?: string;
   started_at: string;
   ended_at?: string;
 }
 
+export type TutorialTurnSpeaker = "user" | "agent" | "system";
+
+export interface TutorialTurn {
+  id: string;
+  tutorial_session_id: string;
+  speaker: TutorialTurnSpeaker;
+  text: string;
+  flags: string[];
+  created_at: string;
+}
+
 export interface TutorialSessionDetail extends TutorialSession {
   artifacts: Artifact[];
+  turns: TutorialTurn[];
 }
 
 // ── Artifact ──────────────────────────────────────────────────────────────────

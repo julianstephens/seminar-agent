@@ -20,6 +20,7 @@ import type {
   Tutorial,
   TutorialSession,
   TutorialSessionDetail,
+  TutorialTurn,
   Turn,
   UpdateSeminarInput,
   UpdateTutorialInput,
@@ -179,6 +180,16 @@ export function createApiClient(getToken: () => Promise<string>) {
 
     deleteArtifact: (sessionId: string, artifactId: string) =>
       del<void>(`/tutorial-sessions/${sessionId}/artifacts/${artifactId}`),
+
+    // ── Tutorial Turns ────────────────────────────────────────────────────────
+    submitTutorialTurn: (sessionId: string, text: string) =>
+      post<TutorialTurn>(`/tutorial-sessions/${sessionId}/turns`, { text }),
+
+    listTutorialTurns: (sessionId: string) =>
+      get<TutorialTurn[]>(`/tutorial-sessions/${sessionId}/turns`),
+
+    tutorialSessionEventsUrl: (sessionId: string) =>
+      `${BASE_URL}/tutorial-sessions/${sessionId}/events`,
   };
 }
 

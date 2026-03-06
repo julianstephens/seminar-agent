@@ -4,6 +4,7 @@ import { EditSeminarDialogProvider } from "@/contexts/EditSeminarDialogContext";
 import { NewSessionDialogProvider } from "@/contexts/NewSessionDialogContext";
 import { SeminarDialogProvider } from "@/contexts/SeminarDialogContext";
 import { SessionEventsProvider } from "@/contexts/SessionEventsContext";
+import { TutorialSessionEventsProvider } from "@/contexts/TutorialSessionEventsContext";
 import { ApiProvider } from "@/lib/ApiContext";
 import Export from "@/pages/Export";
 import Login from "@/pages/Login";
@@ -29,13 +30,15 @@ function App() {
             <AuthGuard>
               <ApiProvider>
                 <SessionEventsProvider>
-                  <SeminarDialogProvider>
-                    <EditSeminarDialogProvider>
-                      <NewSessionDialogProvider>
-                        <Layout />
-                      </NewSessionDialogProvider>
-                    </EditSeminarDialogProvider>
-                  </SeminarDialogProvider>
+                  <TutorialSessionEventsProvider>
+                    <SeminarDialogProvider>
+                      <EditSeminarDialogProvider>
+                        <NewSessionDialogProvider>
+                          <Layout />
+                        </NewSessionDialogProvider>
+                      </EditSeminarDialogProvider>
+                    </SeminarDialogProvider>
+                  </TutorialSessionEventsProvider>
                 </SessionEventsProvider>
               </ApiProvider>
             </AuthGuard>
