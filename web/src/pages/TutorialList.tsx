@@ -1,3 +1,5 @@
+import { CreateTutorialDialog } from "@/components/dialogs/CreateTutorialDialog";
+import { useCreateTutorialDialog } from "@/contexts/CreateTutorialDialogContext";
 import { useApi } from "@/lib/ApiContext";
 import type { CreateTutorialInput, Tutorial } from "@/lib/types";
 import {
@@ -7,12 +9,11 @@ import {
   Card,
   Heading,
   HStack,
-  SimpleGrid,
   Spinner,
   Text,
   VStack,
 } from "@chakra-ui/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const difficultyColor: Record<string, string> = {
@@ -24,20 +25,21 @@ const difficultyColor: Record<string, string> = {
 export default function TutorialList() {
   const api = useApi();
   const navigate = useNavigate();
+  const {
+    isOpen,
+    openDialog,
+    closeDialog,
+    titleRef,
+    subjectRef,
+    descriptionRef,
+    difficulty,
+    setDifficulty,
+  } = useCreateTutorialDialog();
 
   const [tutorials, setTutorials] = useState<Tutorial[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-
-  // Simple inline creation form state
-  const [showForm, setShowForm] = useState(false);
-  const titleRef = useRef<HTMLInputElement>(null);
-  const subjectRef = useRef<HTMLInputElement>(null);
-  const descriptionRef = useRef<HTMLInputElement>(null);
-  const [difficulty, setDifficulty] = useState<
-    "beginner" | "intermediate" | "advanced"
-  >("beginner");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -70,7 +72,12 @@ export default function TutorialList() {
     try {
       const created = await api.createTutorial(input);
       setTutorials((prev) => [created, ...prev]);
-      setShowForm(false);
+      closeDialog();
+      // Clear form fields
+      if (titleRef.current) titleRef.current.value = "";
+      if (subjectRef.current) subjectRef.current.value = "";
+      if (descriptionRef.current) descriptionRef.current.value = "";
+      setDifficulty("beginner");
     } catch (e) {
       setError(String(e));
     } finally {
@@ -79,8 +86,20 @@ export default function TutorialList() {
   };
 
   return (
-    <Box>
-      <HStack mb={6} justify="space-between" align="center" gap={3}>
+    <Box
+      id="tutorialList"
+      maxW={{ base: "100vw", md: "4xl" }}
+      w={{ md: "full" }}
+      mx={{ md: "auto" }}
+      pt={6}
+    >
+      <HStack
+        id="tutorialListHeader"
+        mb={6}
+        justify="space-between"
+        align="center"
+        gap={3}
+      >
         <Heading size="lg" flexShrink={0}>
           My Tutorials
         </Heading>
@@ -88,70 +107,23 @@ export default function TutorialList() {
           bg="#f59e0b"
           color="black"
           _hover={{ bg: "#fbbf24" }}
-          onClick={() => setShowForm((v) => !v)}
+          onClick={openDialog}
         >
-          {showForm ? "Cancel" : "New Tutorial"}
+          New Tutorial
         </Button>
       </HStack>
 
-      {showForm && (
-        <Card.Root mb={6} p={4}>
-          <VStack align="stretch" gap={3}>
-            <Heading size="sm">New Tutorial</Heading>
-            <input
-              ref={titleRef}
-              placeholder="Title *"
-              style={{
-                padding: "6px 10px",
-                border: "1px solid #ccc",
-                borderRadius: 4,
-              }}
-            />
-            <input
-              ref={subjectRef}
-              placeholder="Subject *"
-              style={{
-                padding: "6px 10px",
-                border: "1px solid #ccc",
-                borderRadius: 4,
-              }}
-            />
-            <input
-              ref={descriptionRef}
-              placeholder="Description (optional)"
-              style={{
-                padding: "6px 10px",
-                border: "1px solid #ccc",
-                borderRadius: 4,
-              }}
-            />
-            <select
-              value={difficulty}
-              onChange={(e) =>
-                setDifficulty(e.target.value as typeof difficulty)
-              }
-              style={{
-                padding: "6px 10px",
-                border: "1px solid #ccc",
-                borderRadius: 4,
-              }}
-            >
-              <option value="beginner">Beginner</option>
-              <option value="intermediate">Intermediate</option>
-              <option value="advanced">Advanced</option>
-            </select>
-            <Button
-              bg="#f59e0b"
-              color="black"
-              _hover={{ bg: "#fbbf24" }}
-              loading={creating}
-              onClick={handleCreate}
-            >
-              Create
-            </Button>
-          </VStack>
-        </Card.Root>
-      )}
+      <CreateTutorialDialog
+        isOpen={isOpen}
+        onClose={closeDialog}
+        titleRef={titleRef}
+        subjectRef={subjectRef}
+        descriptionRef={descriptionRef}
+        difficulty={difficulty}
+        setDifficulty={setDifficulty}
+        creating={creating}
+        handleCreate={handleCreate}
+      />
 
       {error && (
         <Text color="red.500" mb={4}>
@@ -168,9 +140,10 @@ export default function TutorialList() {
           <Text>No tutorials yet. Create your first one!</Text>
         </Box>
       ) : (
-        <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap={4}>
+        <VStack w="full" gap={4}>
           {tutorials.map((t) => (
             <Card.Root
+              w="full"
               key={t.id}
               cursor="pointer"
               _hover={{ shadow: "md" }}
@@ -183,7 +156,7 @@ export default function TutorialList() {
                       {t.title}
                     </Heading>
                     <Badge
-                      colorScheme={difficultyColor[t.difficulty] ?? "gray"}
+                      colorPalette={difficultyColor[t.difficulty] ?? "gray"}
                     >
                       {t.difficulty}
                     </Badge>
@@ -205,7 +178,7 @@ export default function TutorialList() {
               </Card.Body>
             </Card.Root>
           ))}
-        </SimpleGrid>
+        </VStack>
       )}
     </Box>
   );

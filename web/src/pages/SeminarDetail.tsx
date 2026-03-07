@@ -1,3 +1,4 @@
+import { DeleteButton, ExportButton } from "@/components/Button";
 import { useEditSeminarDialog } from "@/contexts/EditSeminarDialogContext";
 import { useNewSessionDialog } from "@/contexts/NewSessionDialogContext";
 import { ApiRequestError } from "@/lib/api";
@@ -8,16 +9,15 @@ import {
   Box,
   Button,
   Card,
+  DataList,
   Heading,
   HStack,
-  Icon,
-  IconButton,
   Spinner,
   Stack,
   Text,
 } from "@chakra-ui/react";
 import { useCallback, useEffect, useState } from "react";
-import { FaTrash } from "react-icons/fa";
+import { LuPencil } from "react-icons/lu";
 import { useNavigate, useParams } from "react-router-dom";
 
 export default function SeminarDetail() {
@@ -127,9 +127,16 @@ export default function SeminarDetail() {
 
   return (
     <>
-      <Box>
+      <Box
+        id="seminar"
+        maxW={{ base: "100vw", md: "4xl" }}
+        w={{ md: "full" }}
+        mx={{ md: "auto" }}
+        pt={6}
+      >
         {/* Header */}
         <HStack
+          id="seminarHeader"
           mb={2}
           justify="space-between"
           align="start"
@@ -137,6 +144,14 @@ export default function SeminarDetail() {
           gap={2}
         >
           <Box minW={0} flex={1}>
+            <DataList.Root>
+              <DataList.Item>
+                <DataList.ItemLabel>Thesis:</DataList.ItemLabel>
+                <DataList.ItemValue>
+                  {seminar.thesis_current}
+                </DataList.ItemValue>
+              </DataList.Item>
+            </DataList.Root>
             <Heading size="lg" wordBreak="break-word">
               {seminar.title}
             </Heading>
@@ -153,30 +168,17 @@ export default function SeminarDetail() {
           </Box>
           <HStack gap={2} wrap="wrap" flexShrink={0}>
             <Button
+              className="grey"
               size="sm"
               variant="outline"
               onClick={() => seminar && openEditDialog(seminar)}
             >
+              <LuPencil />
               Edit
             </Button>
 
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => navigate(`/seminars/${id}/export`)}
-            >
-              Export
-            </Button>
-            <IconButton
-              size="sm"
-              colorScheme="red"
-              variant="outline"
-              onClick={handleDelete}
-            >
-              <Icon>
-                <FaTrash />
-              </Icon>
-            </IconButton>
+            <ExportButton to={`/seminars/${id}/export`} />
+            <DeleteButton onClick={handleDelete} />
           </HStack>
         </HStack>
 
@@ -198,7 +200,7 @@ export default function SeminarDetail() {
         )}
 
         {/* Sessions */}
-        <Box>
+        <Box id="seminarSessions">
           <HStack mb={4} justify="space-between">
             <Text fontWeight="medium">{sessions.length} session(s)</Text>
             <Button
@@ -243,19 +245,13 @@ export default function SeminarDetail() {
                         <Badge colorScheme={statusColor[s.status] ?? "gray"}>
                           {s.status}
                         </Badge>
-                        <IconButton
-                          size="xs"
-                          colorScheme="red"
-                          variant="outline"
+                        <ExportButton to={`/sessions/${s.id}/export`} />
+                        <DeleteButton
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDeleteSession(s.id, s.section_label);
                           }}
-                        >
-                          <Icon>
-                            <FaTrash />
-                          </Icon>
-                        </IconButton>
+                        />
                       </HStack>
                     </HStack>
                   </Card.Body>

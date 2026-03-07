@@ -60,7 +60,7 @@ const PHASE_COLOR: Record<SessionPhase, string> = {
   done: "green",
 };
 
-export default function SessionRunner() {
+const SeminarSessionRunner = () => {
   const { id } = useParams<{ id: string }>();
   const api = useApi();
   const navigate = useNavigate();
@@ -452,9 +452,7 @@ export default function SessionRunner() {
                 ⌘/Ctrl+Enter to submit
               </Text>
               <Button
-                bg="#f59e0b"
-                color="black"
-                _hover={{ bg: "#fbbf24" }}
+                className="primary"
                 loading={submitting}
                 disabled={phaseLocked}
                 w={{ base: "full", sm: "auto" }}
@@ -468,4 +466,6 @@ export default function SessionRunner() {
       )}
     </Box>
   );
-}
+};
+
+export default SeminarSessionRunner;

@@ -4,16 +4,21 @@
  * Uses fetch() + ReadableStream so an Authorization header can be injected;
  * the browser's native EventSource does not support custom headers.
  *
- * Tutorial-specific events (no phase/timer semantics from seminar runner):
- *   - tutorial_turn_added
+ * Tutorial-specific events:
+ *   - turn_added
+ *   - agent_response_chunk
  *   - tutorial_artifact_added
  *   - tutorial_artifact_deleted
- *   - tutorial_session_completed
+ *   - session_completed
  *   - error
  */
 
 import { useAccessToken } from "@/auth/useAuth";
-import type { Artifact, TutorialTurn } from "@/lib/types";
+import type {
+  AgentResponseChunkPayload,
+  Artifact,
+  TutorialTurn,
+} from "@/lib/types";
 import { useEffect } from "react";
 
 const BASE_URL =
@@ -46,6 +51,8 @@ export interface TutorialSseErrorPayload {
 export interface UseTutorialSessionEventsOptions {
   /** Fires when a new turn (user or agent) is persisted. */
   onTurnAdded?: (payload: TutorialTurnAddedPayload) => void;
+  /** Fires when a streaming agent response chunk arrives. */
+  onAgentResponseChunk?: (payload: AgentResponseChunkPayload) => void;
   /** Fires when a new artifact is added to the session. */
   onArtifactAdded?: (payload: TutorialArtifactAddedPayload) => void;
   /** Fires when an artifact is removed from the session. */
@@ -78,6 +85,10 @@ export function useTutorialSessionEvents(
 
     async function connect() {
       try {
+        console.log(
+          "[SSE] Connecting to:",
+          `${BASE_URL}/tutorial-sessions/${sessionId}/events`,
+        );
         const token = await getToken();
         const res = await fetch(
           `${BASE_URL}/tutorial-sessions/${sessionId}/events`,
@@ -87,20 +98,37 @@ export function useTutorialSessionEvents(
           },
         );
 
+        console.log("[SSE] Response status:", res.status, res.statusText);
         if (!res.ok || !res.body) {
+          console.error("[SSE] Connection failed:", res.status, res.statusText);
           options.onConnectionError?.(
             new Error(`SSE connect failed: ${res.status} ${res.statusText}`),
           );
           return;
         }
 
+        console.log("[SSE] Connection established, starting to read stream");
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buf = "";
 
         while (!cancelled) {
-          const { done, value } = await reader.read();
-          if (done) break;
+          let readResult;
+          try {
+            readResult = await reader.read();
+          } catch (readError) {
+            // Stream read error (e.g., network issue, stream abort)
+            if (!cancelled) {
+              console.warn("[SSE] stream read error", readError);
+            }
+            break;
+          }
+
+          const { done, value } = readResult;
+          if (done) {
+            console.log("[SSE] Stream ended (done=true)");
+            break;
+          }
 
           buf += decoder.decode(value, { stream: true });
 
@@ -109,6 +137,12 @@ export function useTutorialSessionEvents(
           buf = parts.pop() ?? "";
 
           for (const part of parts) {
+            // Skip heartbeat comments
+            if (part.trim().startsWith(":")) {
+              console.log("[SSE] Received heartbeat");
+              continue;
+            }
+
             let eventType = "message";
             const dataLines: string[] = [];
 
@@ -125,7 +159,13 @@ export function useTutorialSessionEvents(
             let payload: unknown;
             try {
               payload = JSON.parse(dataLines.join("\n")) as unknown;
-            } catch {
+              console.log("[SSE] Received event:", eventType, payload);
+            } catch (e) {
+              console.error(
+                "[SSE] Failed to parse event data:",
+                dataLines.join("\n"),
+                e,
+              );
               continue;
             }
 
@@ -134,10 +174,19 @@ export function useTutorialSessionEvents(
         }
       } catch (e) {
         if (!(e instanceof DOMException && e.name === "AbortError")) {
+          console.error("[SSE] Connection error:", e);
           options.onConnectionError?.(e);
+        } else {
+          console.log("[SSE] Connection aborted");
         }
       } finally {
         cancelled = true;
+        console.log("[SSE] Cleaning up connection");
+        try {
+          reader.cancel();
+        } catch {
+          // Ignore errors when cancelling reader
+        }
       }
     }
 
@@ -161,8 +210,11 @@ function dispatch(
   opts: UseTutorialSessionEventsOptions,
 ): void {
   switch (type) {
-    case "tutorial_turn_added":
+    case "turn_added":
       opts.onTurnAdded?.(payload as TutorialTurnAddedPayload);
+      break;
+    case "agent_response_chunk":
+      opts.onAgentResponseChunk?.(payload as AgentResponseChunkPayload);
       break;
     case "tutorial_artifact_added":
       opts.onArtifactAdded?.(payload as TutorialArtifactAddedPayload);
@@ -170,7 +222,7 @@ function dispatch(
     case "tutorial_artifact_deleted":
       opts.onArtifactDeleted?.(payload as TutorialArtifactDeletedPayload);
       break;
-    case "tutorial_session_completed":
+    case "session_completed":
       opts.onSessionCompleted?.(payload as TutorialSessionCompletedPayload);
       break;
     case "error":

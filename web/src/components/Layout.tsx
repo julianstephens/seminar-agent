@@ -2,6 +2,8 @@ import { useAuthState } from "@/auth/useAuth";
 import { CreateSeminarDialog } from "@/components/dialogs/CreateSeminarDialog";
 import { EditSeminarDialog } from "@/components/dialogs/EditSeminarDialog";
 import { NewSessionDialog } from "@/components/dialogs/NewSessionDialog";
+import { SelectSeminarDialog } from "@/components/dialogs/SelectSeminarDialog";
+import { SelectTutorialDialog } from "@/components/dialogs/SelectTutorialDialog";
 import { useEditSeminarDialog } from "@/contexts/EditSeminarDialogContext";
 import { useNewSessionDialog } from "@/contexts/NewSessionDialogContext";
 import { useSeminarDialog } from "@/contexts/SeminarDialogContext";
@@ -12,14 +14,14 @@ import type {
   UpdateSeminarInput,
 } from "@/lib/types";
 import { Box, Button, Flex, HStack, Spacer, Text } from "@chakra-ui/react";
-import { useState } from "react";
+import React, { useState } from "react";
 import { Outlet, NavLink as RouterLink, useNavigate } from "react-router-dom";
 
 /**
  * Top-level layout shell: nav bar + page content area.
  * All authenticated routes render inside this layout via <Outlet />.
  */
-export default function Layout() {
+const BaseLayout = ({ children }: React.PropsWithChildren) => {
   const { logout, user } = useAuthState();
   const navigate = useNavigate();
   const api = useApi();
@@ -103,7 +105,7 @@ export default function Layout() {
 
   return (
     <>
-      <Flex direction="column" minH="100vh">
+      <Flex id="layout" direction="column" minH="100vh" minW="100vw">
         {/* Nav */}
         <Box
           as="nav"
@@ -112,7 +114,6 @@ export default function Layout() {
           borderBottom="2px solid #f59e0b"
           px={{ base: 3, md: 6 }}
           py={3}
-          shadow="md"
         >
           <HStack d="flex" alignItems="center" gap={{ base: 3, md: 6 }}>
             <Text
@@ -121,7 +122,7 @@ export default function Layout() {
               fontSize="lg"
               cursor="pointer"
               flexShrink={0}
-              onClick={() => navigate("/seminars")}
+              onClick={() => navigate("/")}
             >
               Formation
             </Text>
@@ -152,6 +153,7 @@ export default function Layout() {
                   {user.email ?? user.name}
                 </Text>
                 <Button
+                  className="secondary"
                   size="sm"
                   variant="outline"
                   colorScheme="whiteAlpha"
@@ -166,9 +168,7 @@ export default function Layout() {
         </Box>
 
         {/* Page */}
-        <Box flex={1} p={{ base: 3, md: 6 }}>
-          <Outlet />
-        </Box>
+        {children}
       </Flex>
 
       {/* Create Seminar Dialog */}
@@ -198,6 +198,36 @@ export default function Layout() {
         creating={creatingSession}
         handleCreateSession={handleCreateSession}
       />
+
+      {/* Select Seminar Dialog */}
+      <SelectSeminarDialog />
+
+      {/* Select Tutorial Dialog */}
+      <SelectTutorialDialog />
     </>
   );
-}
+};
+
+export const Layout = () => (
+  <BaseLayout>
+    <Box
+      maxW={{ base: "100vh", md: "4xl" }}
+      w={{ md: "full" }}
+      h="full"
+      mx={{ md: "auto" }}
+      pt="6"
+      px={{ base: "6", md: "0" }}
+      flex={1}
+    >
+      <Outlet />
+    </Box>
+  </BaseLayout>
+);
+
+export const RunnerLayout = () => (
+  <BaseLayout>
+    <Box w="full" h="full" flex={1}>
+      <Outlet />
+    </Box>
+  </BaseLayout>
+);

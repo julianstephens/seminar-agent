@@ -8,7 +8,6 @@ import {
   Card,
   Heading,
   HStack,
-  SimpleGrid,
   Spinner,
   Text,
   VStack,
@@ -16,7 +15,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-export default function SeminarList() {
+const SeminarList = () => {
   const api = useApi();
   const navigate = useNavigate();
   const { openDialog, registerOnCreateCallback } = useSeminarDialog();
@@ -51,17 +50,24 @@ export default function SeminarList() {
 
   return (
     <>
-      <Box>
-        <HStack mb={6} justify="space-between" align="center" gap={3}>
+      <Box
+        id="seminarList"
+        maxW={{ base: "100vw", md: "4xl" }}
+        w={{ md: "full" }}
+        mx={{ md: "auto" }}
+        pt={6}
+      >
+        <HStack
+          id="seminarListHeader"
+          mb={6}
+          justify="space-between"
+          align="center"
+          gap={3}
+        >
           <Heading size="lg" flexShrink={0}>
             My Seminars
           </Heading>
-          <Button
-            bg="#f59e0b"
-            color="black"
-            _hover={{ bg: "#fbbf24" }}
-            onClick={openDialog}
-          >
+          <Button className="primary" onClick={openDialog}>
             New Seminar
           </Button>
         </HStack>
@@ -81,9 +87,10 @@ export default function SeminarList() {
             <Text>No seminars yet. Create your first one!</Text>
           </Box>
         ) : (
-          <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap={4}>
+          <VStack w="full" gap={4}>
             {seminars.map((s) => (
               <Card.Root
+                w="full"
                 key={s.id}
                 cursor="pointer"
                 _hover={{ shadow: "md" }}
@@ -95,7 +102,7 @@ export default function SeminarList() {
                       <Heading size="sm" lineClamp={1}>
                         {s.title}
                       </Heading>
-                      <Badge colorScheme="purple">{s.default_mode}</Badge>
+                      <Badge colorPalette="purple">{s.default_mode}</Badge>
                     </HStack>
                     {s.author && (
                       <Text fontSize="sm" color="gray.500">
@@ -114,9 +121,11 @@ export default function SeminarList() {
                 </Card.Body>
               </Card.Root>
             ))}
-          </SimpleGrid>
+          </VStack>
         )}
       </Box>
     </>
   );
-}
+};
+
+export default SeminarList;

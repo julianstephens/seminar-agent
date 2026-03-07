@@ -145,11 +145,12 @@ export function SessionEventsProvider({
 
   // Cleanup all subscriptions on unmount.
   useEffect(() => {
+    const subs = subscriptionsRef.current;
     return () => {
-      subscriptionsRef.current.forEach((sub) => {
+      subs.forEach((sub) => {
         sub.controller.abort();
       });
-      subscriptionsRef.current.clear();
+      subs.clear();
     };
   }, []);
 

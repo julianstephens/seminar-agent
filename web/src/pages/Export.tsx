@@ -20,6 +20,7 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { useState } from "react";
+import { LuArrowLeft } from "react-icons/lu";
 import { useNavigate, useParams } from "react-router-dom";
 
 type Format = "json" | "md";
@@ -110,8 +111,15 @@ export default function Export({ resourceType }: ExportPageProps) {
     <Box maxW="lg" mx="auto" w="full">
       <HStack mb={6} justify="space-between">
         <Heading size="lg">Export {getTitle()}</Heading>
-        <Button size="sm" variant="ghost" onClick={() => navigate(backPath)}>
-          ← Back
+        <Button
+          className="grey"
+          alignItems="center"
+          size="sm"
+          variant="ghost"
+          onClick={() => navigate(backPath)}
+        >
+          <LuArrowLeft />
+          Back
         </Button>
       </HStack>
 

@@ -148,6 +148,13 @@ export interface SubmitTutorialTurnResponse {
   agent_turn?: TutorialTurn;
 }
 
+export interface AgentResponseChunkPayload {
+  session_id: string;
+  turn_id: string;
+  chunk: string;
+  is_final: boolean;
+}
+
 export interface TutorialSessionDetail extends TutorialSession {
   artifacts: Artifact[];
   turns: TutorialTurn[];

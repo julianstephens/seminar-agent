@@ -1,3 +1,4 @@
+import { DeleteButton, ExportButton } from "@/components/Button";
 import { NewTutorialSessionDialog } from "@/components/dialogs/NewTutorialSessionDialog";
 import { ApiRequestError } from "@/lib/api";
 import { useApi } from "@/lib/ApiContext";
@@ -13,14 +14,11 @@ import {
   Card,
   Heading,
   HStack,
-  Icon,
-  IconButton,
   Spinner,
   Stack,
   Text,
 } from "@chakra-ui/react";
 import { useCallback, useEffect, useState } from "react";
-import { FaTrash } from "react-icons/fa";
 import { useNavigate, useParams } from "react-router-dom";
 
 const statusColor: Record<string, string> = {
@@ -121,9 +119,22 @@ export default function TutorialDetail() {
   }
 
   return (
-    <Box>
+    <Box
+      id="tutorial"
+      maxW={{ base: "100vw", md: "4xl" }}
+      w={{ md: "full" }}
+      mx={{ md: "auto" }}
+      pt={6}
+    >
       {/* Header */}
-      <HStack mb={2} justify="space-between" align="start" wrap="wrap" gap={2}>
+      <HStack
+        id="tutorialHeader"
+        mb={2}
+        justify="space-between"
+        align="start"
+        wrap="wrap"
+        gap={2}
+      >
         <Box minW={0} flex={1}>
           <Heading size="lg" wordBreak="break-word">
             {tutorial.title}
@@ -133,24 +144,9 @@ export default function TutorialDetail() {
           </Text>
         </Box>
         <HStack gap={2} wrap="wrap" flexShrink={0}>
-          <Badge colorScheme="purple">{tutorial.difficulty}</Badge>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => navigate(`/tutorials/${id}/export`)}
-          >
-            Export
-          </Button>
-          <IconButton
-            size="sm"
-            colorScheme="red"
-            variant="outline"
-            onClick={handleDelete}
-          >
-            <Icon>
-              <FaTrash />
-            </Icon>
-          </IconButton>
+          <Badge colorPalette="purple">{tutorial.difficulty}</Badge>
+          <ExportButton to={`/tutorials/${id}/export`} />
+          <DeleteButton onClick={handleDelete} />
         </HStack>
       </HStack>
 
@@ -169,16 +165,10 @@ export default function TutorialDetail() {
       )}
 
       {/* Sessions */}
-      <Box>
+      <Box id="tutorialSessions">
         <HStack mb={4} justify="space-between">
           <Text fontWeight="medium">{sessions.length} session(s)</Text>
-          <Button
-            bg="#f59e0b"
-            color="black"
-            _hover={{ bg: "#fbbf24" }}
-            size="sm"
-            onClick={handleOpenDialog}
-          >
+          <Button className="primary" size="sm" onClick={handleOpenDialog}>
             Start Session
           </Button>
         </HStack>
@@ -216,29 +206,13 @@ export default function TutorialDetail() {
                       <Badge colorScheme={statusColor[s.status] ?? "gray"}>
                         {s.status}
                       </Badge>
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/tutorial-sessions/${s.id}/export`);
-                        }}
-                      >
-                        Export
-                      </Button>
-                      <IconButton
-                        size="xs"
-                        colorScheme="red"
-                        variant="outline"
+                      <ExportButton to={`/tutorial-sessions/${s.id}/export`} />
+                      <DeleteButton
                         onClick={(e) => {
                           e.stopPropagation();
                           void handleDeleteSession(s.id);
                         }}
-                      >
-                        <Icon>
-                          <FaTrash />
-                        </Icon>
-                      </IconButton>
+                      />
                     </HStack>
                   </HStack>
                 </Card.Body>

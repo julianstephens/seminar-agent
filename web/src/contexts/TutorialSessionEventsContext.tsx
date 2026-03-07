@@ -54,20 +54,27 @@ export function TutorialSessionEventsProvider({
     sessionId: string,
     handlers: UseTutorialSessionEventsOptions,
   ) => {
+    console.log("[SSE Context] subscribe called for session:", sessionId);
     const subs = subscriptionsRef.current;
 
     // If already subscribed, update handlers and return.
     if (subs.has(sessionId)) {
+      console.log("[SSE Context] Already subscribed, updating handlers");
       const existing = subs.get(sessionId)!;
       existing.handlers = handlers;
       return;
     }
 
+    console.log("[SSE Context] Creating new subscription");
     const controller = new AbortController();
     let cancelled = false;
 
     async function connect() {
       try {
+        console.log(
+          "[SSE Context] Connecting to:",
+          `${BASE_URL}/tutorial-sessions/${sessionId}/events`,
+        );
         const token = await getToken();
         const res = await fetch(
           `${BASE_URL}/tutorial-sessions/${sessionId}/events`,
@@ -77,20 +84,36 @@ export function TutorialSessionEventsProvider({
           },
         );
 
+        console.log(
+          "[SSE Context] Response status:",
+          res.status,
+          res.statusText,
+        );
         if (!res.ok || !res.body) {
+          console.error(
+            "[SSE Context] Connection failed:",
+            res.status,
+            res.statusText,
+          );
           handlers.onConnectionError?.(
             new Error(`SSE connect failed: ${res.status} ${res.statusText}`),
           );
           return;
         }
 
+        console.log(
+          "[SSE Context] Connection established, starting to read stream",
+        );
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buf = "";
 
         while (!cancelled) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            console.log("[SSE Context] Stream ended (done=true)");
+            break;
+          }
 
           buf += decoder.decode(value, { stream: true });
 
@@ -98,6 +121,12 @@ export function TutorialSessionEventsProvider({
           buf = parts.pop() ?? "";
 
           for (const part of parts) {
+            // Skip heartbeat comments
+            if (part.trim().startsWith(":")) {
+              console.log("[SSE Context] Received heartbeat");
+              continue;
+            }
+
             let eventType = "message";
             const dataLines: string[] = [];
 
@@ -114,7 +143,13 @@ export function TutorialSessionEventsProvider({
             let payload: unknown;
             try {
               payload = JSON.parse(dataLines.join("\n")) as unknown;
-            } catch {
+              console.log("[SSE Context] Received event:", eventType, payload);
+            } catch (e) {
+              console.error(
+                "[SSE Context] Failed to parse event data:",
+                dataLines.join("\n"),
+                e,
+              );
               continue;
             }
 
@@ -127,33 +162,41 @@ export function TutorialSessionEventsProvider({
         }
       } catch (e) {
         if (!(e instanceof DOMException && e.name === "AbortError")) {
+          console.error("[SSE Context] Connection error:", e);
           handlers.onConnectionError?.(e);
+        } else {
+          console.log("[SSE Context] Connection aborted");
         }
       } finally {
         cancelled = true;
+        console.log("[SSE Context] Connection cleanup");
       }
     }
 
     subs.set(sessionId, { controller, handlers });
+    console.log("[SSE Context] Calling connect()");
     void connect();
   };
 
   const unsubscribe = (sessionId: string) => {
+    console.log("[SSE Context] unsubscribe called for session:", sessionId);
     const subs = subscriptionsRef.current;
     const sub = subs.get(sessionId);
     if (sub) {
       sub.controller.abort();
       subs.delete(sessionId);
+      console.log("[SSE Context] Subscription removed");
     }
   };
 
   // Cleanup all subscriptions on unmount.
   useEffect(() => {
+    const subs = subscriptionsRef.current;
     return () => {
-      subscriptionsRef.current.forEach((sub) => {
+      subs.forEach((sub) => {
         sub.controller.abort();
       });
-      subscriptionsRef.current.clear();
+      subs.clear();
     };
   }, []);
 
@@ -174,8 +217,20 @@ export function useTutorialSessionEventsSubscription(
   handlers: UseTutorialSessionEventsOptions,
 ): void {
   const ctx = useContext(TutorialSessionEventsContext);
+  console.log(
+    "[useTutorialSessionEventsSubscription] Hook called with sessionId:",
+    sessionId,
+    "ctx:",
+    ctx,
+  );
 
   useEffect(() => {
+    console.log(
+      "[useTutorialSessionEventsSubscription] useEffect called with sessionId:",
+      sessionId,
+      "ctx:",
+      ctx,
+    );
     if (!sessionId || !ctx) return;
     ctx.subscribe(sessionId, handlers);
     // No cleanup here; connection persists across navigation.
