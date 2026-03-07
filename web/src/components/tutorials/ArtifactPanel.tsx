@@ -21,6 +21,7 @@ const artifactKindColor: Record<string, string> = {
   summary: "blue",
   notes: "green",
   problem_set: "orange",
+  problem_set_response: "teal",
   diagnostic: "purple",
 };
 

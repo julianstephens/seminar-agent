@@ -21,6 +21,8 @@ import TutorialDetail from "@/pages/TutorialDetail";
 import TutorialList from "@/pages/TutorialList";
 import TutorialSessionRunner from "@/pages/TutorialSession";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import ProblemSetList from "@/pages/ProblemSetList";
+import ProblemSetDetail from "@/pages/ProblemSetDetail";
 
 function App() {
   return (
@@ -75,6 +77,14 @@ function App() {
           {/* Tutorials */}
           <Route path="/tutorials" element={<TutorialList />} />
           <Route path="/tutorials/:id" element={<TutorialDetail />} />
+          <Route
+            path="/tutorials/:id/problem-sets"
+            element={<ProblemSetList />}
+          />
+          <Route
+            path="/tutorials/:id/problem-sets/:problemSetId"
+            element={<ProblemSetDetail />}
+          />
           <Route
             path="/tutorials/:id/export"
             element={<Export resourceType="tutorial" />}

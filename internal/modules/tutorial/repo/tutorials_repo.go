@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -151,8 +152,15 @@ func (r *TutorialRepo) GetSessionByID(ctx context.Context, id, ownerSub string) 
 		FROM tutorial_sessions
 		WHERE id = $1 AND owner_sub = $2`
 
+	fmt.Printf("[TutorialRepo.GetSessionByID] Executing query: session_id=%s owner=%s\n", id, ownerSub)
 	row := r.Pool.QueryRow(ctx, q, id, ownerSub)
-	return scanTutorialSession(row)
+	sess, err := scanTutorialSession(row)
+	if err != nil {
+		fmt.Printf("[TutorialRepo.GetSessionByID] Scan failed: %v\n", err)
+		return nil, err
+	}
+	fmt.Printf("[TutorialRepo.GetSessionByID] Success: %+v\n", sess)
+	return sess, nil
 }
 
 // ListSessionsByTutorialID returns all sessions for a tutorial in
@@ -264,11 +272,12 @@ func (r *TutorialRepo) CreateArtifact(
 	a domain.Artifact,
 ) (*domain.Artifact, error) {
 	const q = `
-		INSERT INTO artifacts (session_id, owner_sub, kind, title, content)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, session_id, owner_sub, kind, title, content, created_at`
+		INSERT INTO artifacts (session_id, owner_sub, kind, title, content, problem_set_id)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, session_id, owner_sub, kind, title, content, 
+		          COALESCE(problem_set_id::text, ''), created_at`
 
-	row := r.Pool.QueryRow(ctx, q, a.SessionID, ownerSub, string(a.Kind), a.Title, a.Content)
+	row := r.Pool.QueryRow(ctx, q, a.SessionID, ownerSub, string(a.Kind), a.Title, a.Content, nvlTutStr(a.ProblemSetID))
 	return scanArtifact(row)
 }
 
@@ -276,7 +285,8 @@ func (r *TutorialRepo) CreateArtifact(
 // Returns repo.ErrNotFound if no matching row exists.
 func (r *TutorialRepo) GetArtifactByID(ctx context.Context, id, ownerSub string) (*domain.Artifact, error) {
 	const q = `
-		SELECT id, session_id, owner_sub, kind, title, content, created_at
+		SELECT id, session_id, owner_sub, kind, title, content, 
+		       COALESCE(problem_set_id::text, ''), created_at
 		FROM artifacts
 		WHERE id = $1 AND owner_sub = $2`
 
@@ -291,7 +301,8 @@ func (r *TutorialRepo) ListArtifactsBySessionID(
 	sessionID, ownerSub string,
 ) ([]domain.Artifact, error) {
 	const q = `
-		SELECT id, session_id, owner_sub, kind, title, content, created_at
+		SELECT id, session_id, owner_sub, kind, title, content, 
+		       COALESCE(problem_set_id::text, ''), created_at
 		FROM artifacts
 		WHERE session_id = $1 AND owner_sub = $2
 		ORDER BY created_at`
@@ -614,6 +625,22 @@ func (r *TutorialRepo) GetProblemSetByWeek(
 	return scanProblemSet(row)
 }
 
+// GetProblemSetBySession returns the problem set assigned from a specific session.
+func (r *TutorialRepo) GetProblemSetBySession(
+	ctx context.Context,
+	sessionID, ownerSub string,
+) (*domain.ProblemSet, error) {
+	const q = `
+		SELECT id, tutorial_id, owner_sub, week_of,
+		       COALESCE(assigned_from_session_id::text, ''), status, tasks,
+		       COALESCE(review_notes, ''), created_at, updated_at
+		FROM problem_sets
+		WHERE assigned_from_session_id = $1 AND owner_sub = $2`
+
+	row := r.Pool.QueryRow(ctx, q, sessionID, ownerSub)
+	return scanProblemSet(row)
+}
+
 // ListProblemSets returns all problem sets for a tutorial.
 func (r *TutorialRepo) ListProblemSets(
 	ctx context.Context,
@@ -621,7 +648,7 @@ func (r *TutorialRepo) ListProblemSets(
 ) ([]domain.ProblemSet, error) {
 	const q = `
 		SELECT id, tutorial_id, owner_sub, week_of,
-		       COALESCE(assigned_from_session_id, ''), status, tasks,
+		       COALESCE(assigned_from_session_id::text, ''), status, tasks,
 		       COALESCE(review_notes, ''), created_at, updated_at
 		FROM problem_sets
 		WHERE tutorial_id = $1 AND owner_sub = $2
@@ -695,6 +722,23 @@ func (r *TutorialRepo) ListPatternLinksForProblemSet(
 	return result, rows.Err()
 }
 
+// UpdateProblemSetStatus updates the status of a problem set.
+func (r *TutorialRepo) UpdateProblemSetStatus(
+	ctx context.Context,
+	id, ownerSub, status string,
+) (*domain.ProblemSet, error) {
+	const q = `
+		UPDATE problem_sets
+		SET status = $3, updated_at = NOW()
+		WHERE id = $1 AND owner_sub = $2
+		RETURNING id, tutorial_id, owner_sub, week_of,
+		          COALESCE(assigned_from_session_id, ''), status, tasks,
+		          COALESCE(review_notes, ''), created_at, updated_at`
+
+	row := r.Pool.QueryRow(ctx, q, id, ownerSub, status)
+	return scanProblemSet(row)
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 type tutorialScanner interface {
@@ -753,6 +797,7 @@ func scanArtifact(row artifactScanner) (*domain.Artifact, error) {
 	err := row.Scan(
 		&a.ID, &a.SessionID, &a.OwnerSub,
 		&kind, &a.Title, &a.Content,
+		&a.ProblemSetID,
 		&a.CreatedAt,
 	)
 	if err != nil {
@@ -790,9 +835,10 @@ type diagnosticEntryScanner interface {
 func scanDiagnosticEntry(row diagnosticEntryScanner) (*domain.DiagnosticEntry, error) {
 	var e domain.DiagnosticEntry
 	var patternCode, status string
+	var rawEvidence []byte
 	err := row.Scan(
 		&e.ID, &e.TutorialID, &e.TutorialSessionID, &e.OwnerSub, &e.WeekOf,
-		&patternCode, &e.Severity, &status, &e.Evidence,
+		&patternCode, &e.Severity, &status, &rawEvidence,
 		&e.Notes, &e.CreatedAt, &e.UpdatedAt,
 	)
 	if err != nil {
@@ -803,6 +849,15 @@ func scanDiagnosticEntry(row diagnosticEntryScanner) (*domain.DiagnosticEntry, e
 	}
 	e.PatternCode = domain.DiagnosticPatternCode(patternCode)
 	e.Status = domain.DiagnosticStatus(status)
+
+	if rawEvidence != nil {
+		if err := json.Unmarshal(rawEvidence, &e.Evidence); err != nil {
+			return nil, fmt.Errorf("unmarshal diagnostic evidence: %w", err)
+		}
+	}
+	if e.Evidence == nil {
+		e.Evidence = []domain.DiagnosticEvidence{}
+	}
 	return &e, nil
 }
 
@@ -812,9 +867,10 @@ type problemSetScanner interface {
 
 func scanProblemSet(row problemSetScanner) (*domain.ProblemSet, error) {
 	var ps domain.ProblemSet
+	var rawTasks []byte
 	err := row.Scan(
 		&ps.ID, &ps.TutorialID, &ps.OwnerSub, &ps.WeekOf,
-		&ps.AssignedFromSessionID, &ps.Status, &ps.Tasks,
+		&ps.AssignedFromSessionID, &ps.Status, &rawTasks,
 		&ps.ReviewNotes, &ps.CreatedAt, &ps.UpdatedAt,
 	)
 	if err != nil {
@@ -822,6 +878,15 @@ func scanProblemSet(row problemSetScanner) (*domain.ProblemSet, error) {
 			return nil, repo.ErrNotFound
 		}
 		return nil, fmt.Errorf("scan problem set: %w", err)
+	}
+
+	if rawTasks != nil {
+		if err := json.Unmarshal(rawTasks, &ps.Tasks); err != nil {
+			return nil, fmt.Errorf("unmarshal problem set tasks: %w", err)
+		}
+	}
+	if ps.Tasks == nil {
+		ps.Tasks = []domain.ProblemSetTask{}
 	}
 	return &ps, nil
 }

@@ -158,11 +158,17 @@ export interface AgentResponseChunkPayload {
 export interface TutorialSessionDetail extends TutorialSession {
   artifacts: Artifact[];
   turns: TutorialTurn[];
+  problem_set?: ProblemSet;
 }
 
 // ── Artifact ──────────────────────────────────────────────────────────────────
 
-export type ArtifactKind = "summary" | "notes" | "problem_set" | "diagnostic";
+export type ArtifactKind =
+  | "summary"
+  | "notes"
+  | "problem_set"
+  | "problem_set_response"
+  | "diagnostic";
 
 export interface Artifact {
   id: string;
@@ -170,6 +176,7 @@ export interface Artifact {
   kind: ArtifactKind;
   title: string;
   content: string;
+  problem_set_id?: string;
   created_at: string;
 }
 
@@ -177,4 +184,32 @@ export interface CreateArtifactInput {
   kind: ArtifactKind;
   title: string;
   content: string;
+  problem_set_id?: string;
+}
+
+// ── ProblemSet ────────────────────────────────────────────────────────────────
+
+export type ProblemSetStatus =
+  | "assigned"
+  | "submitted"
+  | "reviewed"
+  | "deleted";
+
+export interface ProblemSetTask {
+  pattern_code: string;
+  title: string;
+  description: string;
+  prompt: string;
+}
+
+export interface ProblemSet {
+  id: string;
+  tutorial_id: string;
+  week_of: string;
+  assigned_from_session_id: string;
+  status: ProblemSetStatus;
+  tasks: ProblemSetTask[];
+  review_notes?: string;
+  created_at: string;
+  updated_at: string;
 }

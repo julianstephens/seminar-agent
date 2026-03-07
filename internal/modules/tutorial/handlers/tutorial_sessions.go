@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -41,6 +42,8 @@ func (h *TutorialSessionHandler) Register(rg *gin.RouterGroup) {
 	rg.DELETE("/:id", h.Delete)
 	rg.POST("/:id/complete", h.Complete)
 	rg.POST("/:id/abandon", h.Abandon)
+	rg.GET("/:id/problem-set", h.GetSessionProblemSet)
+	rg.DELETE("/:id/problem-set", h.DeleteSessionProblemSet)
 	rg.GET("/:id/artifacts", h.ListArtifacts)
 	rg.POST("/:id/artifacts", h.CreateArtifact)
 	rg.DELETE("/:id/artifacts/:artifactId", h.DeleteArtifact)
@@ -64,8 +67,12 @@ func (h *TutorialSessionHandler) Get(c *gin.Context) {
 		return
 	}
 
-	detail, err := h.sessionSvc.GetTutorialSession(c.Request.Context(), c.Param("id"), ownerSub)
+	sessionID := c.Param("id")
+	_ = c.Error(fmt.Errorf("[TutorialSessionHandler.Get] Fetching session_id=%s owner=%s", sessionID, ownerSub))
+
+	detail, err := h.sessionSvc.GetTutorialSession(c.Request.Context(), sessionID, ownerSub)
 	if err != nil {
+		_ = c.Error(fmt.Errorf("[TutorialSessionHandler.Get] Failed to get session: %w", err))
 		handleServiceError(c, err)
 		return
 	}
@@ -84,6 +91,10 @@ func (h *TutorialSessionHandler) Get(c *gin.Context) {
 		TutorialSessionResponse: toTutorialSessionResponse(*detail.Session),
 		Artifacts:               artifacts,
 		Turns:                   turns,
+	}
+	if detail.ProblemSet != nil {
+		ps := toProblemSetResponse(*detail.ProblemSet)
+		resp.ProblemSet = &ps
 	}
 	c.JSON(http.StatusOK, resp)
 }
@@ -161,6 +172,71 @@ func (h *TutorialSessionHandler) Abandon(c *gin.Context) {
 	c.JSON(http.StatusOK, toTutorialSessionResponse(*sess))
 }
 
+// ── Problem Set Handlers ───────────────────────────────────────────────────────
+
+// GetSessionProblemSet godoc
+//
+//	@Summary  Get the problem set assigned from a tutorial session
+//	@Tags     tutorial-sessions
+//	@Produce  json
+//	@Param    id   path      string  true  "Session ID"
+//	@Success  200  {object}  apphttp.ProblemSetResponse
+//	@Success  404
+//	@Router   /v1/tutorial-sessions/{id}/problem-set [get]
+func (h *TutorialSessionHandler) GetSessionProblemSet(c *gin.Context) {
+	ownerSub, err := auth.MustOwnerSub(c)
+	if err != nil {
+		return
+	}
+
+	// First verify session ownership
+	_, err = h.sessionSvc.GetTutorialSession(c.Request.Context(), c.Param("id"), ownerSub)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	// Directly access repo through session service's repo
+	// We need to get the repo from somewhere - let's check TutorialSessionHandler structure
+	ps, err := h.sessionSvc.GetSessionProblemSet(c.Request.Context(), c.Param("id"), ownerSub)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, toProblemSetResponse(*ps))
+}
+
+// DeleteSessionProblemSet godoc
+//
+//	@Summary  Soft delete a problem set assigned from a tutorial session
+//	@Tags     tutorial-sessions
+//	@Param    id   path  string  true  "Session ID"
+//	@Success  204
+//	@Router   /v1/tutorial-sessions/{id}/problem-set [delete]
+func (h *TutorialSessionHandler) DeleteSessionProblemSet(c *gin.Context) {
+	ownerSub, err := auth.MustOwnerSub(c)
+	if err != nil {
+		return
+	}
+
+	// First verify session ownership and get problem set
+	ps, err := h.sessionSvc.GetSessionProblemSet(c.Request.Context(), c.Param("id"), ownerSub)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	// Soft delete by updating status
+	err = h.sessionSvc.DeleteSessionProblemSet(c.Request.Context(), ps.ID, ownerSub)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
 // ── Artifact Handlers ──────────────────────────────────────────────────────────
 
 // ListArtifacts godoc
@@ -213,9 +289,10 @@ func (h *TutorialSessionHandler) CreateArtifact(c *gin.Context) {
 	}
 
 	art, err := h.artifactSvc.CreateArtifact(c.Request.Context(), ownerSub, c.Param("id"), service.CreateArtifactParams{
-		Kind:    domain.ArtifactKind(req.Kind),
-		Title:   req.Title,
-		Content: req.Content,
+		Kind:         domain.ArtifactKind(req.Kind),
+		Title:        req.Title,
+		Content:      req.Content,
+		ProblemSetID: req.ProblemSetID,
 	})
 	if err != nil {
 		handleServiceError(c, err)

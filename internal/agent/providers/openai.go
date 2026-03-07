@@ -73,7 +73,11 @@ func (o *OpenAI) CompleteStream(
 	if err != nil {
 		return "", fmt.Errorf("openai chat completion stream: %w", err)
 	}
-	defer stream.Close()
+	defer func() {
+		if err := stream.Close(); err != nil {
+			slog.Warn("failed to close stream", "error", err)
+		}
+	}()
 
 	var fullResponse string
 	chunkCount := 0

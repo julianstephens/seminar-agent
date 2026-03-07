@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/julianstephens/formation/internal/domain"
 	"github.com/julianstephens/formation/internal/modules/tutorial/repo"
 	"github.com/julianstephens/formation/internal/observability"
+	sharedRepo "github.com/julianstephens/formation/internal/repo"
 	"github.com/julianstephens/formation/internal/sse"
 )
 
@@ -184,9 +186,10 @@ func (s *TutorialSessionService) CreateTutorialSession(
 
 // TutorialSessionDetail wraps a session with its artifacts and turns.
 type TutorialSessionDetail struct {
-	Session   *domain.TutorialSession
-	Artifacts []domain.Artifact
-	Turns     []domain.TutorialTurn
+	Session    *domain.TutorialSession
+	Artifacts  []domain.Artifact
+	Turns      []domain.TutorialTurn
+	ProblemSet *domain.ProblemSet
 }
 
 // GetTutorialSession returns the session, its artifacts, and turns if owned by ownerSub.
@@ -194,22 +197,42 @@ func (s *TutorialSessionService) GetTutorialSession(
 	ctx context.Context,
 	id, ownerSub string,
 ) (*TutorialSessionDetail, error) {
+	fmt.Printf("[TutorialSessionService.GetTutorialSession] START session_id=%s owner=%s\n", id, ownerSub)
+
 	sess, err := s.sessions.GetSessionByID(ctx, id, ownerSub)
 	if err != nil {
+		fmt.Printf("[TutorialSessionService.GetTutorialSession] GetSessionByID failed: %v\n", err)
 		return nil, wrapNotFound(err, "tutorial_session", id)
 	}
+	fmt.Printf("[TutorialSessionService.GetTutorialSession] Found session: %+v\n", sess)
 
 	artifacts, err := s.sessions.ListArtifactsBySessionID(ctx, id, ownerSub)
 	if err != nil {
+		fmt.Printf("[TutorialSessionService.GetTutorialSession] ListArtifactsBySessionID failed: %v\n", err)
 		return nil, fmt.Errorf("get session artifacts: %w", err)
 	}
+	fmt.Printf("[TutorialSessionService.GetTutorialSession] Found %d artifacts\n", len(artifacts))
 
 	turns, err := s.sessions.ListTutorialTurns(ctx, id, ownerSub)
 	if err != nil {
+		fmt.Printf("[TutorialSessionService.GetTutorialSession] ListTutorialTurns failed: %v\n", err)
 		return nil, fmt.Errorf("get session turns: %w", err)
 	}
+	fmt.Printf("[TutorialSessionService.GetTutorialSession] Found %d turns\n", len(turns))
 
-	return &TutorialSessionDetail{Session: sess, Artifacts: artifacts, Turns: turns}, nil
+	// Fetch problem set if one is assigned to this session
+	var problemSet *domain.ProblemSet
+	ps, err := s.sessions.GetProblemSetBySession(ctx, id, ownerSub)
+	if err == nil {
+		problemSet = ps
+		fmt.Printf("[TutorialSessionService.GetTutorialSession] Found problem set: %s\n", ps.ID)
+	} else {
+		fmt.Printf("[TutorialSessionService.GetTutorialSession] GetProblemSetBySession error (may be expected): %v\n", err)
+	}
+	// Ignore not found error - it's valid for sessions to have no problem set
+
+	fmt.Printf("[TutorialSessionService.GetTutorialSession] SUCCESS\n")
+	return &TutorialSessionDetail{Session: sess, Artifacts: artifacts, Turns: turns, ProblemSet: problemSet}, nil
 }
 
 // ── Session List ───────────────────────────────────────────────────────────────
@@ -288,6 +311,37 @@ func (s *TutorialSessionService) DeleteTutorialSession(ctx context.Context, id, 
 	return nil
 }
 
+// ── Problem Set Methods ────────────────────────────────────────────────────────
+
+// GetSessionProblemSet returns the problem set assigned from a specific session.
+func (s *TutorialSessionService) GetSessionProblemSet(
+	ctx context.Context,
+	sessionID, ownerSub string,
+) (*domain.ProblemSet, error) {
+	// Verify session ownership first
+	if _, err := s.sessions.GetSessionByID(ctx, sessionID, ownerSub); err != nil {
+		return nil, wrapNotFound(err, "tutorial_session", sessionID)
+	}
+
+	ps, err := s.sessions.GetProblemSetBySession(ctx, sessionID, ownerSub)
+	if err != nil {
+		return nil, wrapNotFound(err, "problem_set", "for session "+sessionID)
+	}
+	return ps, nil
+}
+
+// DeleteSessionProblemSet soft deletes a problem set by updating its status to 'deleted'.
+func (s *TutorialSessionService) DeleteSessionProblemSet(
+	ctx context.Context,
+	problemSetID, ownerSub string,
+) error {
+	_, err := s.sessions.UpdateProblemSetStatus(ctx, problemSetID, ownerSub, "deleted")
+	if err != nil {
+		return wrapNotFound(err, "problem_set", problemSetID)
+	}
+	return nil
+}
+
 // ── ArtifactService ───────────────────────────────────────────────────────────
 
 // ArtifactService implements all business operations for artifacts.
@@ -304,9 +358,10 @@ func NewArtifactService(r *repo.TutorialRepo) *ArtifactService {
 
 // CreateArtifactParams holds all caller-supplied fields for creating an artifact.
 type CreateArtifactParams struct {
-	Kind    domain.ArtifactKind
-	Title   string
-	Content string
+	Kind         domain.ArtifactKind
+	Title        string
+	Content      string
+	ProblemSetID string
 }
 
 // CreateArtifact validates params and persists a new artifact under sessionID.
@@ -334,10 +389,11 @@ func (s *ArtifactService) CreateArtifact(
 	}
 
 	art := domain.Artifact{
-		SessionID: sessionID,
-		Kind:      p.Kind,
-		Title:     p.Title,
-		Content:   p.Content,
+		SessionID:    sessionID,
+		Kind:         p.Kind,
+		Title:        p.Title,
+		Content:      p.Content,
+		ProblemSetID: p.ProblemSetID,
 	}
 	created, err := s.repo.CreateArtifact(ctx, ownerSub, art)
 	if err != nil {
@@ -691,8 +747,66 @@ func (s *TutorialTurnService) SubmitTutorialTurn(
 		}
 	}
 
-	// Strip the diagnostic JSON block from the agent response before storing
+	// ── Parse and persist problem set (extended sessions only) ──
+
+	if sess.Kind == domain.TutorialSessionKindExtended {
+		problemSetInputs, err := ParseProblemSetJSON(agentText)
+		if err != nil {
+			logger.Error("failed to parse problem set JSON block",
+				"session_id", sessionID,
+				"error", err.Error(),
+			)
+			// Continue without problem set rather than failing
+		} else if len(problemSetInputs) > 0 {
+			// Check if a problem set already exists for this session
+			existingPS, err := s.repo.GetProblemSetBySession(ctx, sessionID, ownerSub)
+			if err != nil && !errors.Is(err, sharedRepo.ErrNotFound) {
+				logger.Error("failed to check for existing problem set",
+					"session_id", sessionID,
+					"error", err.Error(),
+				)
+			} else if existingPS != nil {
+				logger.Info("problem set already exists for this session, skipping creation",
+					"session_id", sessionID,
+					"problem_set_id", existingPS.ID,
+				)
+			} else {
+				// No existing problem set, create one
+				problemSetTasks, err := ConvertToProblemSetTasks(problemSetInputs)
+				if err != nil {
+					logger.Error("failed to convert problem set tasks",
+						"session_id", sessionID,
+						"error", err.Error(),
+					)
+				} else {
+					newProblemSet := domain.ProblemSet{
+						TutorialID:            sess.TutorialID,
+						OwnerSub:              ownerSub,
+						WeekOf:                weekOf,
+						AssignedFromSessionID: sessionID,
+						Status:                "assigned",
+						Tasks:                 problemSetTasks,
+					}
+					_, err = s.repo.CreateProblemSet(ctx, ownerSub, newProblemSet)
+					if err != nil {
+						logger.Error("failed to create problem set",
+							"session_id", sessionID,
+							"error", err.Error(),
+						)
+					} else {
+						logger.Info("successfully created problem set from agent response",
+							"session_id", sessionID,
+							"task_count", len(problemSetTasks),
+						)
+					}
+				}
+			}
+		}
+	}
+
+	// Strip the diagnostic and problem set JSON blocks from the agent response before storing
 	agentTextStripped := StripDiagnosticBlock(agentText)
+	agentTextStripped = StripProblemSetBlock(agentTextStripped)
 
 	// Update pattern statuses after extended review
 	if sess.Kind == domain.TutorialSessionKindExtended {

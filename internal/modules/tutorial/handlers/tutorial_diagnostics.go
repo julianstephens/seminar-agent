@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -132,6 +133,10 @@ func (h *TutorialDiagnosticsHandler) ListProblemSets(c *gin.Context) {
 		ownerSub,
 	)
 	if err != nil {
+		slog.Error("failed to list problem sets",
+			slog.String("tutorial_id", tutorialID),
+			slog.String("owner_sub", ownerSub),
+			slog.String("error", err.Error()))
 		apphttp.Fail(c, http.StatusInternalServerError, "internal_error", "failed to list problem sets")
 		return
 	}

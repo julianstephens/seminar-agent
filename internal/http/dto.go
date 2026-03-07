@@ -126,9 +126,10 @@ type CompleteTutorialSessionRequest struct {
 
 // CreateArtifactRequest is the body for POST /v1/tutorial-sessions/:id/artifacts.
 type CreateArtifactRequest struct {
-	Kind    string `json:"kind"    binding:"required"`
-	Title   string `json:"title"   binding:"required"`
-	Content string `json:"content" binding:"required"`
+	Kind         string `json:"kind"           binding:"required"`
+	Title        string `json:"title"          binding:"required"`
+	Content      string `json:"content"        binding:"required"`
+	ProblemSetID string `json:"problem_set_id"`
 }
 
 // ── Tutorial response DTOs ─────────────────────────────────────────────────────
@@ -157,19 +158,21 @@ type TutorialSessionResponse struct {
 
 // ArtifactResponse is the JSON representation of an Artifact resource.
 type ArtifactResponse struct {
-	ID        string              `json:"id"`
-	SessionID string              `json:"session_id"`
-	Kind      domain.ArtifactKind `json:"kind"`
-	Title     string              `json:"title"`
-	Content   string              `json:"content"`
-	CreatedAt time.Time           `json:"created_at"`
+	ID           string              `json:"id"`
+	SessionID    string              `json:"session_id"`
+	Kind         domain.ArtifactKind `json:"kind"`
+	Title        string              `json:"title"`
+	Content      string              `json:"content"`
+	ProblemSetID string              `json:"problem_set_id,omitempty"`
+	CreatedAt    time.Time           `json:"created_at"`
 }
 
 // TutorialSessionDetailResponse is the JSON representation of a session with its artifacts and turns.
 type TutorialSessionDetailResponse struct {
 	TutorialSessionResponse
-	Artifacts []ArtifactResponse     `json:"artifacts"`
-	Turns     []TutorialTurnResponse `json:"turns"`
+	Artifacts  []ArtifactResponse     `json:"artifacts"`
+	Turns      []TutorialTurnResponse `json:"turns"`
+	ProblemSet *ProblemSetResponse    `json:"problem_set,omitempty"`
 }
 
 // ── Turn request DTOs ──────────────────────────────────────────────────────────

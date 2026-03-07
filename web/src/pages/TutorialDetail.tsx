@@ -14,11 +14,13 @@ import {
   Card,
   Heading,
   HStack,
+  Icon,
   Spinner,
   Stack,
   Text,
 } from "@chakra-ui/react";
 import { useCallback, useEffect, useState } from "react";
+import { LuFileText } from "react-icons/lu";
 import { useNavigate, useParams } from "react-router-dom";
 
 const statusColor: Record<string, string> = {
@@ -168,9 +170,19 @@ export default function TutorialDetail() {
       <Box id="tutorialSessions">
         <HStack mb={4} justify="space-between">
           <Text fontWeight="medium">{sessions.length} session(s)</Text>
-          <Button className="primary" size="sm" onClick={handleOpenDialog}>
-            Start Session
-          </Button>
+          <HStack>
+            <Button
+              className="grey"
+              size="sm"
+              onClick={() => navigate(`/tutorials/${tutorial.id}/problem-sets`)}
+            >
+              <Icon as={LuFileText} />
+              Problem Sets
+            </Button>
+            <Button className="primary" size="sm" onClick={handleOpenDialog}>
+              Start Session
+            </Button>
+          </HStack>
         </HStack>
 
         {sessions.length === 0 ? (
@@ -203,7 +215,7 @@ export default function TutorialDetail() {
                       </Text>
                     </Box>
                     <HStack gap={2} flexShrink={0}>
-                      <Badge colorScheme={statusColor[s.status] ?? "gray"}>
+                      <Badge colorPalette={statusColor[s.status] ?? "gray"}>
                         {s.status}
                       </Badge>
                       <ExportButton to={`/tutorial-sessions/${s.id}/export`} />

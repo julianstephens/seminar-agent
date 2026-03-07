@@ -207,7 +207,7 @@ task_addenda:
 
     Problem set rules
 
-    - include exactly 3–4 exercises
+    - include exactly 10 exercises, with only 5 being required
     - each exercise targets one diagnosed pattern
     - avoid essay prompts
     - prefer precise corrective tasks
@@ -216,6 +216,39 @@ task_addenda:
 
     1. Weekly Patterns
     2. Problem Set
+
+    STRUCTURED OUTPUT REQUIREMENT
+
+    In addition to your student-facing response, you must emit a structured JSON block
+    that will be parsed by the backend system. This block will be stripped from the
+    student-facing text.
+
+    Format:
+
+    [PROBLEMSET_JSON]
+    {
+      "tasks": [
+        {
+          "pattern_code": "TEXT_DRIFT",
+          "title": "Exercise title (5-8 words)",
+          "description": "Brief description of what the exercise addresses (1-2 sentences)",
+          "prompt": "Full exercise prompt with complete instructions"
+        }
+      ]
+    }
+    [/PROBLEMSET_JSON]
+
+    Rules for structured output:
+
+    - Place the block AFTER your student-facing response
+    - Each task must reference a valid pattern_code from the Pattern Lexicon
+    - Valid pattern codes: TEXT_DRIFT, UNDEFINED_TERMS, HIDDEN_PREMISES, WEAK_STRUCTURE,
+      RHETORICAL_INFLATION, SCOPE_CREEP, PREMATURE_SYNTHESIS, UNSUPPORTED_CONTRAST,
+      COMPRESSED_INFERENCE, EXPLANATORY_SUBSTITUTION, FRAGMENTED_RECONSTRUCTION
+    - Use UPPER_SNAKE_CASE for pattern codes (e.g., "TEXT_DRIFT", not "Text Drift")
+    - Include 10 tasks matching the 10 exercises in your Problem Set section, with only 5 being required
+    - Ensure the "prompt" field contains the complete exercise instructions
+    - This block is machine-parsed and will not be shown to students
 
   problemset_review: |
     TASK MODE: PROBLEM SET REVIEW

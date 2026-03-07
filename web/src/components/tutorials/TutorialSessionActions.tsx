@@ -36,11 +36,7 @@ export const TutorialSessionActions = ({
       px={{ base: 4, md: 0 }}
     >
       <HStack w="full" gap={3} wrap="wrap">
-        <Button
-          size="sm"
-          className="primary"
-          onClick={onToggleCompleteForm}
-        >
+        <Button size="sm" className="primary" onClick={onToggleCompleteForm}>
           {showCompleteForm ? "Cancel" : "Complete Session"}
         </Button>
         <Button

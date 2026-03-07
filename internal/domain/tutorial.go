@@ -108,13 +108,14 @@ func ValidArtifactKind(k ArtifactKind) bool {
 
 // Artifact is a piece of content produced during a tutorial session.
 type Artifact struct {
-	ID        string       `json:"id"`
-	SessionID string       `json:"session_id"`
-	OwnerSub  string       `json:"-"`
-	Kind      ArtifactKind `json:"kind"`
-	Title     string       `json:"title"`
-	Content   string       `json:"content"`
-	CreatedAt time.Time    `json:"created_at"`
+	ID           string       `json:"id"`
+	SessionID    string       `json:"session_id"`
+	OwnerSub     string       `json:"-"`
+	Kind         ArtifactKind `json:"kind"`
+	Title        string       `json:"title"`
+	Content      string       `json:"content"`
+	ProblemSetID string       `json:"problem_set_id,omitempty"`
+	CreatedAt    time.Time    `json:"created_at"`
 }
 
 // ── TutorialTurn ───────────────────────────────────────────────────────────────

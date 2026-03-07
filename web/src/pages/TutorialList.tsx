@@ -103,12 +103,7 @@ export default function TutorialList() {
         <Heading size="lg" flexShrink={0}>
           My Tutorials
         </Heading>
-        <Button
-          bg="#f59e0b"
-          color="black"
-          _hover={{ bg: "#fbbf24" }}
-          onClick={openDialog}
-        >
+        <Button className="primary" onClick={openDialog}>
           New Tutorial
         </Button>
       </HStack>

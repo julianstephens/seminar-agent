@@ -2,6 +2,7 @@ import { ChatInput } from "@/components/chat/ChatInput";
 import { ArtifactsDialog } from "@/components/dialogs/ArtifactsDialog";
 import { CreateArtifactDialog } from "@/components/dialogs/CreateArtifactDialog";
 import { ArtifactPanel } from "@/components/tutorials/ArtifactPanel";
+import { ProblemSetPanel } from "@/components/tutorials/ProblemSetPanel";
 import { TutorialTurnList } from "@/components/tutorials/TurnList";
 import { TutorialSessionActions } from "@/components/tutorials/TutorialSessionActions";
 import { TutorialSessionHeader } from "@/components/tutorials/TutorialSessionHeader";
@@ -29,15 +30,14 @@ import {
 } from "@chakra-ui/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 // ── Main component ────────────────────────────────────────────────────────────
 
 const TutorialSessionRunner = () => {
-  const { id } = useParams<{ id: string; }>();
+  const { id } = useParams<{ id: string }>();
   console.log("[TutorialSessionRunner] Component rendered, id:", id);
   const api = useApi();
-  const navigate = useNavigate();
   const unsubscribe = useTutorialSessionEventsUnsubscribe();
 
   // Artifact dialog
@@ -142,9 +142,9 @@ const TutorialSessionRunner = () => {
       setDetail((prev) =>
         prev
           ? {
-            ...prev,
-            artifacts: prev.artifacts.filter((a) => a.id !== artifact_id),
-          }
+              ...prev,
+              artifacts: prev.artifacts.filter((a) => a.id !== artifact_id),
+            }
           : prev,
       );
     },
@@ -241,9 +241,9 @@ const TutorialSessionRunner = () => {
       setDetail((prev) =>
         prev
           ? {
-            ...prev,
-            artifacts: prev.artifacts.filter((a) => a.id !== artifact.id),
-          }
+              ...prev,
+              artifacts: prev.artifacts.filter((a) => a.id !== artifact.id),
+            }
           : null,
       );
     } catch (e) {
@@ -251,7 +251,7 @@ const TutorialSessionRunner = () => {
     }
   };
 
-  const handleCreateArtifact = async () => {
+  const handleCreateArtifact = async (problemSetId?: string) => {
     if (!id) return;
     const title = artifactDialog.titleRef.current?.value.trim();
     const content = artifactDialog.contentRef.current?.value.trim();
@@ -269,6 +269,7 @@ const TutorialSessionRunner = () => {
         kind: artifactDialog.kind,
         title,
         content,
+        problem_set_id: problemSetId,
       });
       setDetail((prev) =>
         prev ? { ...prev, artifacts: [...prev.artifacts, artifact] } : prev,
@@ -290,6 +291,18 @@ const TutorialSessionRunner = () => {
       setError(e instanceof ApiRequestError ? e.message : String(e));
     } finally {
       setCreatingArtifact(false);
+    }
+  };
+
+  const handleDeleteProblemSet = async () => {
+    if (!id || !detail?.problem_set) return;
+    if (!window.confirm("Delete this problem set?")) return;
+
+    try {
+      await api.deleteSessionProblemSet(id);
+      setDetail((prev) => (prev ? { ...prev, problem_set: undefined } : prev));
+    } catch (e) {
+      setError(e instanceof ApiRequestError ? e.message : String(e));
     }
   };
 
@@ -404,6 +417,13 @@ const TutorialSessionRunner = () => {
           onDelete={handleDeleteArtifact}
         />
       </Box>
+      <Box display={{ base: "none", lg: "block" }}>
+        <ProblemSetPanel
+          problemSet={detail.problem_set}
+          isTerminal={isTerminal}
+          onDelete={handleDeleteProblemSet}
+        />
+      </Box>
       <CreateArtifactDialog
         isOpen={artifactDialog.isOpen}
         onClose={artifactDialog.closeDialog}
@@ -412,9 +432,10 @@ const TutorialSessionRunner = () => {
         kind={artifactDialog.kind}
         setKind={artifactDialog.setKind}
         creating={creatingArtifact}
-        handleCreate={() => void handleCreateArtifact()}
+        handleCreate={(problemSetId) => void handleCreateArtifact(problemSetId)}
         createAnother={artifactDialog.createAnother}
         setCreateAnother={artifactDialog.setCreateAnother}
+        problemSet={detail.problem_set}
       />
       <ArtifactsDialog
         isOpen={artifactsDialogOpen}
@@ -423,6 +444,8 @@ const TutorialSessionRunner = () => {
         isTerminal={isTerminal}
         onAdd={artifactDialog.openDialog}
         onDelete={handleDeleteArtifact}
+        problemSet={detail.problem_set}
+        onDeleteProblemSet={handleDeleteProblemSet}
       />
     </Flex>
   );

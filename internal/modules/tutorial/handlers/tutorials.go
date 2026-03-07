@@ -275,12 +275,13 @@ func toTutorialSessionResponse(s domain.TutorialSession) apphttp.TutorialSession
 
 func toArtifactResponse(a domain.Artifact) apphttp.ArtifactResponse {
 	return apphttp.ArtifactResponse{
-		ID:        a.ID,
-		SessionID: a.SessionID,
-		Kind:      a.Kind,
-		Title:     a.Title,
-		Content:   a.Content,
-		CreatedAt: a.CreatedAt,
+		ID:           a.ID,
+		SessionID:    a.SessionID,
+		Kind:         a.Kind,
+		Title:        a.Title,
+		Content:      a.Content,
+		ProblemSetID: a.ProblemSetID,
+		CreatedAt:    a.CreatedAt,
 	}
 }
 
@@ -291,6 +292,29 @@ func toTutorialTurnResponse(t domain.TutorialTurn) apphttp.TutorialTurnResponse 
 		Speaker:   t.Speaker,
 		Text:      t.Text,
 		CreatedAt: t.CreatedAt,
+	}
+}
+
+func toProblemSetResponse(ps domain.ProblemSet) apphttp.ProblemSetResponse {
+	tasks := make([]apphttp.ProblemSetTaskResponse, len(ps.Tasks))
+	for i, t := range ps.Tasks {
+		tasks[i] = apphttp.ProblemSetTaskResponse{
+			PatternCode: string(t.PatternCode),
+			Title:       t.Title,
+			Description: t.Description,
+			Prompt:      t.Prompt,
+		}
+	}
+	return apphttp.ProblemSetResponse{
+		ID:                    ps.ID,
+		TutorialID:            ps.TutorialID,
+		WeekOf:                ps.WeekOf,
+		AssignedFromSessionID: ps.AssignedFromSessionID,
+		Status:                ps.Status,
+		Tasks:                 tasks,
+		ReviewNotes:           ps.ReviewNotes,
+		CreatedAt:             ps.CreatedAt,
+		UpdatedAt:             ps.UpdatedAt,
 	}
 }
 
@@ -311,5 +335,7 @@ func handleServiceError(c *gin.Context, err error) {
 		return
 	}
 
+	// Log the actual error for debugging
+	_ = c.Error(err)
 	apphttp.Fail(c, http.StatusInternalServerError, "internal_error", "an unexpected error occurred")
 }

@@ -15,6 +15,7 @@ import type {
   CreateSessionInput,
   CreateTutorialInput,
   CreateTutorialSessionInput,
+  ProblemSet,
   Seminar,
   Session,
   SessionDetail,
@@ -186,6 +187,18 @@ export function createApiClient(getToken: () => Promise<string>) {
 
     deleteTutorialSession: (sessionId: string) =>
       del<void>(`/tutorial-sessions/${sessionId}`),
+
+    // ── Problem Sets ──────────────────────────────────────────────────────────
+    listTutorialProblemSets: (tutorialId: string) =>
+      get<{ problem_sets: ProblemSet[] }>(
+        `/tutorials/${tutorialId}/problem-sets`,
+      ).then((res) => res.problem_sets),
+
+    getSessionProblemSet: (sessionId: string) =>
+      get<ProblemSet>(`/tutorial-sessions/${sessionId}/problem-set`),
+
+    deleteSessionProblemSet: (sessionId: string) =>
+      del<void>(`/tutorial-sessions/${sessionId}/problem-set`),
 
     // ── Artifacts ─────────────────────────────────────────────────────────────
     listArtifacts: (sessionId: string) =>

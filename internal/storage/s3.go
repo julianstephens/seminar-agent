@@ -5,15 +5,12 @@ package storage
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/aws/smithy-go"
 
 	appConfig "github.com/julianstephens/formation/internal/config"
 )
@@ -64,41 +61,6 @@ func NewS3Client(cfg *appConfig.Config) *S3Client {
 	// }
 
 	return s3Client
-}
-
-func (c *S3Client) ensureBucketExists(ctx context.Context) error {
-	_, err := c.client.HeadBucket(ctx, &s3.HeadBucketInput{
-		Bucket: aws.String(c.bucket),
-	}, func(o *s3.Options) {})
-	exists := true
-	if err != nil {
-		var apiError smithy.APIError
-		if errors.As(err, &apiError) {
-			switch apiError.(type) {
-			case *types.NotFound:
-				exists = false
-				err = nil
-			default:
-				return fmt.Errorf("checking bucket existence: %w", err)
-			}
-		}
-	}
-	if err != nil {
-		return fmt.Errorf("checking bucket existence: %w", err)
-	}
-	if exists {
-		return nil
-	}
-
-	// Bucket does not exist, attempt to create it
-	_, err = c.client.CreateBucket(ctx, &s3.CreateBucketInput{
-		Bucket: aws.String(c.bucket),
-	})
-	if err != nil {
-		return fmt.Errorf("creating bucket: %w", err)
-	}
-
-	return nil
 }
 
 // Upload puts content into the bucket under key with the given content type.
