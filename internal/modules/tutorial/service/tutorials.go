@@ -387,11 +387,12 @@ func (s *ArtifactService) DeleteArtifact(ctx context.Context, id, ownerSub strin
 
 // TutorialTurnService implements all business operations for tutorial session turns.
 type TutorialTurnService struct {
-	repo          *repo.TutorialRepo
-	assembler     *agent.TutorialAssembler
-	hub           *sse.Hub
-	agent         agent.Provider // may be nil when no LLM is configured
-	diagnosticSvc *DiagnosticLedgerService
+	repo            *repo.TutorialRepo
+	assembler       *agent.TutorialAssembler
+	hub             *sse.Hub
+	agent           agent.Provider // may be nil when no LLM is configured
+	diagnosticSvc   *DiagnosticLedgerService
+	enableStreaming bool
 }
 
 // NewTutorialTurnService constructs a TutorialTurnService backed by the given repository.
@@ -402,13 +403,15 @@ func NewTutorialTurnService(
 	hub *sse.Hub,
 	provider agent.Provider,
 	diagnosticSvc *DiagnosticLedgerService,
+	enableStreaming bool,
 ) *TutorialTurnService {
 	return &TutorialTurnService{
-		repo:          r,
-		assembler:     assembler,
-		hub:           hub,
-		agent:         provider,
-		diagnosticSvc: diagnosticSvc,
+		repo:            r,
+		assembler:       assembler,
+		hub:             hub,
+		agent:           provider,
+		diagnosticSvc:   diagnosticSvc,
+		enableStreaming: enableStreaming,
 	}
 }
 
@@ -597,22 +600,74 @@ func (s *TutorialTurnService) SubmitTutorialTurn(
 		return result, nil
 	}
 
-	// Call the agent.
-	agentText, err := s.agent.Complete(ctx, messages)
+	// Create an empty agent turn first to get a turn ID for streaming.
+	agentTurn := domain.TutorialTurn{
+		SessionID: sessionID,
+		Speaker:   "agent",
+		Text:      "", // Will be updated after streaming completes
+	}
+	agentCreated, err := s.repo.CreateTutorialTurn(ctx, sessionID, ownerSub, agentTurn)
 	if err != nil {
-		logger := observability.LoggerFromContext(ctx)
-		logger.Error("agent call failed",
+		return result, fmt.Errorf("create agent turn: %w", err)
+	}
+
+	// Emit initial turn_added SSE for agent turn.
+	s.hub.PublishTutorialTurnAdded(agentCreated)
+
+	// Call the agent with or without streaming.
+	var agentText string
+	logger := observability.LoggerFromContext(ctx)
+
+	if s.enableStreaming {
+		logger.Info("starting agent streaming",
 			"session_id", sessionID,
-			"error", err.Error(),
+			"turn_id", agentCreated.ID,
 		)
-		return result, nil // Return user turn even if agent call fails
+		// Use streaming mode: publish chunks as they arrive.
+		chunkCount := 0
+		chunkFn := func(chunk string) error {
+			chunkCount++
+			logger.Debug("publishing chunk",
+				"session_id", sessionID,
+				"turn_id", agentCreated.ID,
+				"chunk_num", chunkCount,
+				"chunk_len", len(chunk),
+			)
+			s.hub.PublishAgentResponseChunk(sessionID, agentCreated.ID, chunk, false)
+			return nil
+		}
+		agentText, err = s.agent.CompleteStream(ctx, messages, chunkFn)
+		logger.Info("agent streaming completed",
+			"session_id", sessionID,
+			"turn_id", agentCreated.ID,
+			"total_chunks", chunkCount,
+			"total_length", len(agentText),
+		)
+		if err != nil {
+			logger.Error("agent streaming call failed",
+				"session_id", sessionID,
+				"turn_id", agentCreated.ID,
+				"error", err.Error(),
+			)
+			return result, nil // Return user turn even if agent call fails
+		}
+	} else {
+		// Use non-streaming mode.
+		agentText, err = s.agent.Complete(ctx, messages)
+		if err != nil {
+			logger.Error("agent call failed",
+				"session_id", sessionID,
+				"turn_id", agentCreated.ID,
+				"error", err.Error(),
+			)
+			return result, nil // Return user turn even if agent call fails
+		}
 	}
 
 	// ── Parse and persist diagnostic entries ──
 
 	diagnosticInputs, err := ParseDiagnosticJSON(agentText)
 	if err != nil {
-		logger := observability.LoggerFromContext(ctx)
 		logger.Error("failed to parse diagnostic JSON block",
 			"session_id", sessionID,
 			"error", err.Error(),
@@ -621,7 +676,6 @@ func (s *TutorialTurnService) SubmitTutorialTurn(
 	} else if len(diagnosticInputs) > 0 {
 		diagnosticEntries, err := ConvertToDiagnosticEntries(diagnosticInputs)
 		if err != nil {
-			logger := observability.LoggerFromContext(ctx)
 			logger.Error("failed to convert diagnostic entries",
 				"session_id", sessionID,
 				"error", err.Error(),
@@ -629,7 +683,6 @@ func (s *TutorialTurnService) SubmitTutorialTurn(
 		} else {
 			err = s.diagnosticSvc.RecordEntries(ctx, ownerSub, sess.TutorialID, sessionID, weekOf, diagnosticEntries)
 			if err != nil {
-				logger := observability.LoggerFromContext(ctx)
 				logger.Error("failed to record diagnostic entries",
 					"session_id", sessionID,
 					"error", err.Error(),
@@ -645,7 +698,6 @@ func (s *TutorialTurnService) SubmitTutorialTurn(
 	if sess.Kind == domain.TutorialSessionKindExtended {
 		err = s.diagnosticSvc.UpdatePatternStatuses(ctx, sess.TutorialID, ownerSub, weekOf)
 		if err != nil {
-			logger := observability.LoggerFromContext(ctx)
 			logger.Error("failed to update pattern statuses",
 				"session_id", sessionID,
 				"error", err.Error(),
@@ -653,19 +705,20 @@ func (s *TutorialTurnService) SubmitTutorialTurn(
 		}
 	}
 
-	// Create the agent turn with the stripped text.
-	agentTurn := domain.TutorialTurn{
-		SessionID: sessionID,
-		Speaker:   "agent",
-		Text:      agentTextStripped,
-	}
-	agentCreated, err := s.repo.CreateTutorialTurn(ctx, sessionID, ownerSub, agentTurn)
+	// Update the agent turn with the complete stripped text.
+	agentCreated, err = s.repo.UpdateTutorialTurn(ctx, agentCreated.ID, sessionID, ownerSub, agentTextStripped)
 	if err != nil {
-		return result, fmt.Errorf("create agent turn: %w", err)
+		return result, fmt.Errorf("update agent turn: %w", err)
 	}
 
-	// Emit turn_added SSE for agent turn.
-	s.hub.PublishTutorialTurnAdded(agentCreated)
+	// Emit final chunk with complete text if streaming was enabled.
+	if s.enableStreaming {
+		logger.Info("sending final stream chunk",
+			"session_id", sessionID,
+			"turn_id", agentCreated.ID,
+		)
+		s.hub.PublishAgentResponseChunk(sessionID, agentCreated.ID, "", true)
+	}
 
 	result.AgentTurn = agentCreated
 	return result, nil

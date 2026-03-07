@@ -34,11 +34,12 @@ import (
 // ── Event types ───────────────────────────────────────────────────────────────
 
 const (
-	EventPhaseChanged     = "phase_changed"
-	EventTimerTick        = "timer_tick"
-	EventTurnAdded        = "turn_added"
-	EventSessionCompleted = "session_completed"
-	EventError            = "error"
+	EventPhaseChanged       = "phase_changed"
+	EventTimerTick          = "timer_tick"
+	EventTurnAdded          = "turn_added"
+	EventAgentResponseChunk = "agent_response_chunk"
+	EventSessionCompleted   = "session_completed"
+	EventError              = "error"
 )
 
 // Event is a single SSE message.
@@ -71,6 +72,14 @@ type TurnAddedPayload struct {
 type TutorialTurnAddedPayload struct {
 	SessionID string              `json:"session_id"`
 	Turn      domain.TutorialTurn `json:"turn"`
+}
+
+// AgentResponseChunkPayload is carried by agent_response_chunk events.
+type AgentResponseChunkPayload struct {
+	SessionID string `json:"session_id"`
+	TurnID    string `json:"turn_id"`
+	Chunk     string `json:"chunk"`
+	IsFinal   bool   `json:"is_final"`
 }
 
 // SessionCompletedPayload is carried by session_completed events.
@@ -218,6 +227,25 @@ func (h *Hub) PublishTutorialTurnAdded(t *domain.TutorialTurn) {
 	h.Publish(t.SessionID, Event{
 		Type: EventTurnAdded,
 		Data: TutorialTurnAddedPayload{SessionID: t.SessionID, Turn: *t},
+	})
+}
+
+// PublishAgentResponseChunk emits an agent_response_chunk event for streaming agent responses.
+func (h *Hub) PublishAgentResponseChunk(sessionID, turnID, chunk string, isFinal bool) {
+	h.log.Debug("sse: publishing chunk",
+		"session", sessionID,
+		"turn", turnID,
+		"chunk_len", len(chunk),
+		"is_final", isFinal,
+	)
+	h.Publish(sessionID, Event{
+		Type: EventAgentResponseChunk,
+		Data: AgentResponseChunkPayload{
+			SessionID: sessionID,
+			TurnID:    turnID,
+			Chunk:     chunk,
+			IsFinal:   isFinal,
+		},
 	})
 }
 

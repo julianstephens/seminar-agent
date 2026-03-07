@@ -121,9 +121,14 @@ func (s *ExportService) ExportTutorial(
 		if err != nil {
 			return nil, fmt.Errorf("load turns for tutorial session %s: %w", sess.ID, err)
 		}
+		artifacts, err := s.tutorials.ListArtifactsBySessionID(ctx, sess.ID, ownerSub)
+		if err != nil {
+			return nil, fmt.Errorf("load artifacts for tutorial session %s: %w", sess.ID, err)
+		}
 		sessionExports = append(sessionExports, export.TutorialSessionExport{
-			Session: sess,
-			Turns:   turns,
+			Session:   sess,
+			Turns:     turns,
+			Artifacts: artifacts,
 		})
 	}
 
@@ -150,9 +155,15 @@ func (s *ExportService) ExportTutorialSession(
 		return nil, fmt.Errorf("load turns for tutorial session export: %w", err)
 	}
 
+	artifacts, err := s.tutorials.ListArtifactsBySessionID(ctx, sessionID, ownerSub)
+	if err != nil {
+		return nil, fmt.Errorf("load artifacts for tutorial session export: %w", err)
+	}
+
 	return &export.TutorialSessionExport{
-		Session: *sess,
-		Turns:   turns,
+		Session:   *sess,
+		Turns:     turns,
+		Artifacts: artifacts,
 	}, nil
 }
 

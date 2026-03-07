@@ -15,4 +15,10 @@ type Provider interface {
 	// assistant's response text.  The caller is responsible for context
 	// cancellation and timeout management.
 	Complete(ctx context.Context, messages []Message) (string, error)
+
+	// CompleteStream sends messages to the model and streams the response in chunks.
+	// The chunkFn callback is invoked for each token/chunk as it arrives from the provider.
+	// Returns the complete accumulated response text and any error.
+	// The caller is responsible for context cancellation and timeout management.
+	CompleteStream(ctx context.Context, messages []Message, chunkFn func(chunk string) error) (string, error)
 }

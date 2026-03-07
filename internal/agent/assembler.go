@@ -42,11 +42,15 @@ type tutorialCanonicalPrompt struct {
 	Name                  string            `yaml:"name"`
 	Description           string            `yaml:"description"`
 	CoreSystem            string            `yaml:"core_system"`
+	ResponseContract      string            `yaml:"response_contract"`
 	SessionKindAddenda    map[string]string `yaml:"session_kind_addenda"`
 	TaskAddenda           map[string]string `yaml:"task_addenda"`
-	RoseHillContext       string            `yaml:"rose_hill_context"`
-	ExampleExchange       string            `yaml:"example_exchange"`
+	RepairVsExerciseRule  string            `yaml:"repair_vs_exercise_rule"`
+	EvidenceRules         string            `yaml:"evidence_rules"`
+	PatternLexicon        string            `yaml:"pattern_lexicon"`
+	PrescriptionRules     string            `yaml:"prescription_rules"`
 	SessionHeaderTemplate string            `yaml:"session_header_template"`
+	OptionalAddenda       map[string]string `yaml:"optional_addenda"`
 }
 
 // ── Message ───────────────────────────────────────────────────────────────────
@@ -261,10 +265,18 @@ type TutorialAssembleParams struct {
 
 // AssembleTutorial composes the ordered message slice for a tutorial session.
 //
-// Composition order:
-//  1. core_system + rose_hill_context + example_exchange + session_kind_addendum + task_addendum (single system message)
-//  2. session_header (runtime-interpolated system message)
-//  3. conversation turns in chronological order
+// Composition order (per canonical.yml v1.1.0):
+//  1. core_system
+//  2. response_contract
+//  3. session_kind_addendum
+//  4. task_addendum
+//  5. evidence_rules
+//  6. prescription_rules
+//  7. session_header (runtime-interpolated)
+//  8. conversation turns
+//  9. optional_addenda (only for cold starts)
+//
+// The example_only addendum is appended after conversation turns only for cold starts.
 func (a *TutorialAssembler) AssembleTutorial(p TutorialAssembleParams) ([]Message, error) {
 	// Get session kind addendum (optional - defaults to empty).
 	sessionKindText := a.canonical.SessionKindAddenda[p.SessionKind]
@@ -272,42 +284,65 @@ func (a *TutorialAssembler) AssembleTutorial(p TutorialAssembleParams) ([]Messag
 	// Get task addendum (optional - defaults to empty).
 	taskText := a.canonical.TaskAddenda[p.TaskMode]
 
-	// Combine core, rose hill context, example, session kind, and task into a single system message.
+	// Compose core system message per canonical order.
 	var sb strings.Builder
+
+	// 1. core_system
 	sb.WriteString(strings.TrimSpace(a.canonical.CoreSystem))
 
-	// Add Rose Hill context
-	if a.canonical.RoseHillContext != "" {
+	// 2. response_contract
+	if a.canonical.ResponseContract != "" {
 		sb.WriteString("\n\n")
-		sb.WriteString(strings.TrimSpace(a.canonical.RoseHillContext))
+		sb.WriteString(strings.TrimSpace(a.canonical.ResponseContract))
 	}
 
-	// Add example exchange
-	if a.canonical.ExampleExchange != "" {
-		sb.WriteString("\n\n")
-		sb.WriteString(strings.TrimSpace(a.canonical.ExampleExchange))
-	}
-
+	// 3. session_kind_addendum
 	if sessionKindText != "" {
 		sb.WriteString("\n\n")
 		sb.WriteString(strings.TrimSpace(sessionKindText))
 	}
+
+	// 4. task_addendum
 	if taskText != "" {
 		sb.WriteString("\n\n")
 		sb.WriteString(strings.TrimSpace(taskText))
 	}
 
+	// 5. evidence_rules
+	if a.canonical.EvidenceRules != "" {
+		sb.WriteString("\n\n")
+		sb.WriteString(strings.TrimSpace(a.canonical.EvidenceRules))
+	}
+
+	// 6. prescription_rules
+	if a.canonical.PrescriptionRules != "" {
+		sb.WriteString("\n\n")
+		sb.WriteString(strings.TrimSpace(a.canonical.PrescriptionRules))
+	}
+
+	// 7. session_header (as separate system message)
 	messages := []Message{
 		{Role: "system", Content: sb.String()},
 		{Role: "system", Content: a.interpolateTutorialHeader(p)},
 	}
 
-	// Append conversation history.
+	// 8. conversation turns
 	for _, t := range p.Turns {
 		messages = append(messages, Message{
 			Role:    speakerToRole(t.Speaker),
 			Content: t.Text,
 		})
+	}
+
+	// 9. optional_addenda (example_only for cold starts only)
+	// Appended after conversation turns to avoid biasing ongoing sessions.
+	if len(p.Turns) == 0 {
+		if exampleText, ok := a.canonical.OptionalAddenda["example_only"]; ok && exampleText != "" {
+			messages = append(messages, Message{
+				Role:    "system",
+				Content: strings.TrimSpace(exampleText),
+			})
+		}
 	}
 
 	return messages, nil

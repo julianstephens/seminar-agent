@@ -21,8 +21,9 @@ type Config struct {
 	Auth0Audience string
 
 	// OpenAI
-	OpenAIAPIKey string
-	OpenAIModel  string
+	OpenAIAPIKey    string
+	OpenAIModel     string
+	EnableStreaming bool
 
 	// SSE
 	TimerTickSeconds int
@@ -46,6 +47,7 @@ func Load() (*Config, error) {
 		Auth0Audience:    os.Getenv("AUTH0_AUDIENCE"),
 		OpenAIAPIKey:     os.Getenv("OPENAI_API_KEY"),
 		OpenAIModel:      getEnv("OPENAI_MODEL", "gpt-4o"),
+		EnableStreaming:  getEnv("ENABLE_STREAMING", true),
 		TimerTickSeconds: getEnv("TIMER_TICK_SECONDS", 2),
 		S3EndpointURL:    os.Getenv("S3_ENDPOINT_URL"),
 		S3AccessKeyID:    os.Getenv("S3_ACCESS_KEY_ID"),
@@ -63,14 +65,14 @@ func Load() (*Config, error) {
 
 func (c *Config) validate() error {
 	required := map[string]string{
-		"DATABASE_URL":    c.DatabaseURL,
-		"AUTH0_DOMAIN":    c.Auth0Domain,
-		"AUTH0_AUDIENCE":  c.Auth0Audience,
-		"OPENAI_API_KEY":  c.OpenAIAPIKey,
-		"S3_ENDPOINT_URL": c.S3EndpointURL,
+		"DATABASE_URL":     c.DatabaseURL,
+		"AUTH0_DOMAIN":     c.Auth0Domain,
+		"AUTH0_AUDIENCE":   c.Auth0Audience,
+		"OPENAI_API_KEY":   c.OpenAIAPIKey,
+		"S3_ENDPOINT_URL":  c.S3EndpointURL,
 		"S3_ACCESS_KEY_ID": c.S3AccessKeyID,
-		"S3_SECRET_KEY":   c.S3SecretKey,
-		"S3_BUCKET_NAME":  c.S3BucketName,
+		"S3_SECRET_KEY":    c.S3SecretKey,
+		"S3_BUCKET_NAME":   c.S3BucketName,
 	}
 
 	var missing []string
@@ -95,6 +97,10 @@ func getEnv[T any](key string, fallback T) T {
 		case int:
 			if i, err := strconv.Atoi(v); err == nil {
 				return any(i).(T)
+			}
+		case bool:
+			if b, err := strconv.ParseBool(v); err == nil {
+				return any(b).(T)
 			}
 		}
 	}

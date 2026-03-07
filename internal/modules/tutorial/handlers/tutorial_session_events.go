@@ -10,6 +10,7 @@ import (
 	"github.com/julianstephens/formation/internal/auth"
 	apphttp "github.com/julianstephens/formation/internal/http"
 	"github.com/julianstephens/formation/internal/modules/tutorial/service"
+	"github.com/julianstephens/formation/internal/observability"
 	"github.com/julianstephens/formation/internal/sse"
 )
 
@@ -67,6 +68,12 @@ func (h *TutorialSessionEventsHandler) Stream(c *gin.Context) {
 	events, unsub := h.hub.Subscribe(sessionID, ownerSub)
 	defer unsub()
 
+	logger := observability.LoggerFromContext(c.Request.Context())
+	logger.Info("sse: connection established",
+		"session_id", sessionID,
+		"owner", ownerSub,
+	)
+
 	// Flush headers immediately so the browser receives the streaming response.
 	flusher, hasFlusher := c.Writer.(http.Flusher)
 	if !hasFlusher {
@@ -84,6 +91,10 @@ func (h *TutorialSessionEventsHandler) Stream(c *gin.Context) {
 	write := func(raw string) bool {
 		_, writeErr := fmt.Fprint(w, raw)
 		if writeErr != nil {
+			logger.Warn("sse: write error",
+				"session_id", sessionID,
+				"error", writeErr.Error(),
+			)
 			return false
 		}
 		flusher.Flush()
@@ -93,8 +104,17 @@ func (h *TutorialSessionEventsHandler) Stream(c *gin.Context) {
 	sendEvent := func(e sse.Event) bool {
 		raw, fmtErr := sse.Format(e)
 		if fmtErr != nil {
+			logger.Warn("sse: failed to format event",
+				"session_id", sessionID,
+				"event_type", e.Type,
+				"error", fmtErr.Error(),
+			)
 			return true // skip malformed; don't close the stream
 		}
+		logger.Debug("sse: sending event",
+			"session_id", sessionID,
+			"event_type", e.Type,
+		)
 		return write(raw)
 	}
 
@@ -102,6 +122,9 @@ func (h *TutorialSessionEventsHandler) Stream(c *gin.Context) {
 		select {
 		// Client disconnected.
 		case <-c.Request.Context().Done():
+			logger.Info("sse: client disconnected",
+				"session_id", sessionID,
+			)
 			return
 
 		// Heartbeat comment to keep the connection alive through proxies.

@@ -138,6 +138,7 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 		hub,
 		openaiProvider,
 		diagnosticLedgerSvc,
+		cfg.EnableStreaming,
 	)
 	tutorialHandler := tutorialHandlers.NewTutorialHandler(tutorialSvc, tutorialSessionSvc)
 	tutorialSessionHandler := tutorialHandlers.NewTutorialSessionHandler(
@@ -173,7 +174,7 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 		Addr:         fmt.Sprintf(":%s", cfg.Port),
 		Handler:      router,
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 60 * time.Second, // longer to accommodate SSE streams
+		WriteTimeout: 0, // disable write timeout to allow indefinite SSE streams
 		IdleTimeout:  120 * time.Second,
 	}
 

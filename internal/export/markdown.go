@@ -179,6 +179,18 @@ func renderTutorialSessionSection(sb *strings.Builder, n int, se *TutorialSessio
 		fmt.Fprintf(sb, "**Ended:** %s  \n", fmtTime(*s.EndedAt))
 	}
 
+	// ── Artifacts ─────────────────────────────────────────────────────────────
+	if len(se.Artifacts) > 0 {
+		sb.WriteString("\n#### Artifacts\n\n")
+		for _, a := range se.Artifacts {
+			fmt.Fprintf(sb, "**%s** _%s_  \n", a.Title, a.Kind)
+			fmt.Fprintf(sb, "_%s_\n\n", fmtTime(a.CreatedAt))
+			if a.Content != "" {
+				fmt.Fprintf(sb, "```\n%s\n```\n\n", a.Content)
+			}
+		}
+	}
+
 	sb.WriteString("\n#### Transcript\n\n")
 
 	if len(se.Turns) == 0 {

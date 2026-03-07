@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+
 	"github.com/julianstephens/formation/internal/domain"
 	"github.com/julianstephens/formation/internal/repo"
 )
@@ -401,6 +402,33 @@ func (r *TutorialRepo) ListTutorialTurns(
 		result = []domain.TutorialTurn{}
 	}
 	return result, nil
+}
+
+// UpdateTutorialTurn updates the text field of an existing turn.
+// This is used when streaming agent responses to update the turn after
+// it has been created with empty/placeholder text.
+func (r *TutorialRepo) UpdateTutorialTurn(
+	ctx context.Context,
+	turnID, sessionID, ownerSub, newText string,
+) (*domain.TutorialTurn, error) {
+	// First verify the session exists and the owner matches.
+	const checkQ = `SELECT 1 FROM tutorial_sessions WHERE id = $1 AND owner_sub = $2`
+	var exists int
+	if err := r.Pool.QueryRow(ctx, checkQ, sessionID, ownerSub).Scan(&exists); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, repo.ErrNotFound
+		}
+		return nil, fmt.Errorf("check tutorial session ownership: %w", err)
+	}
+
+	const q = `
+		UPDATE tutorial_turns
+		SET text = $1
+		WHERE id = $2 AND session_id = $3
+		RETURNING id, session_id, speaker, text, created_at`
+
+	row := r.Pool.QueryRow(ctx, q, newText, turnID, sessionID)
+	return scanTutorialTurn(row)
 }
 
 // ── Diagnostic Entries ────────────────────────────────────────────────────────

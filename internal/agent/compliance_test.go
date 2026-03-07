@@ -17,6 +17,15 @@ type stubProvider struct {
 	err   error
 }
 
+// CompleteStream implements agent.Provider.
+func (s *stubProvider) CompleteStream(
+	ctx context.Context,
+	messages []agent.Message,
+	chunkFn func(chunk string) error,
+) (string, error) {
+	panic("unimplemented")
+}
+
 func (s *stubProvider) Complete(_ context.Context, _ []agent.Message) (string, error) {
 	return s.reply, s.err
 }
