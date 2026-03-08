@@ -113,13 +113,21 @@ func (o *OpenAI) CompleteStream(
 
 // toOpenAIMessages converts the provider-agnostic Message slice to the
 // openai SDK's ChatCompletionMessage type.
+// Messages with empty content are filtered out to avoid OpenAI API errors.
 func toOpenAIMessages(msgs []agent.Message) []openai.ChatCompletionMessage {
-	out := make([]openai.ChatCompletionMessage, len(msgs))
-	for i, m := range msgs {
-		out[i] = openai.ChatCompletionMessage{
+	out := make([]openai.ChatCompletionMessage, 0, len(msgs))
+	for _, m := range msgs {
+		// Skip messages with empty content to avoid "expected a string, got null" errors
+		if m.Content == "" {
+			slog.Warn("skipping message with empty content",
+				"role", m.Role,
+			)
+			continue
+		}
+		out = append(out, openai.ChatCompletionMessage{
 			Role:    m.Role,
 			Content: m.Content,
-		}
+		})
 	}
 	return out
 }

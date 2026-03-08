@@ -1,41 +1,84 @@
+import type { TutorialSessionKind } from "@/lib/types";
 import { Box, Button, Flex, Icon, Span, Textarea } from "@chakra-ui/react";
 import { type KeyboardEvent, useState } from "react";
 import { LuSend } from "react-icons/lu";
+import { ProblemSetCommandBuilder } from "./ProblemSetCommandBuilder";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  sessionKind?: TutorialSessionKind;
 }
 
 export function ChatInput({
   onSend,
   disabled,
   placeholder = "Your message...",
+  sessionKind,
 }: ChatInputProps) {
   const [message, setMessage] = useState("");
+  const [showCommandBuilder, setShowCommandBuilder] = useState(false);
 
   const handleSubmit = () => {
     if (message.trim() && !disabled) {
       onSend(message.trim());
       setMessage("");
+      setShowCommandBuilder(false);
     }
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // Close command builder on Escape
+    if (e.key === "Escape" && showCommandBuilder) {
+      e.preventDefault();
+      setShowCommandBuilder(false);
+      return;
+    }
+
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       handleSubmit();
     }
   };
 
+  const handleMessageChange = (value: string) => {
+    setMessage(value);
+
+    // Show command builder if user types "/problem-set" in an extended session
+    const trimmed = value.trim().toLowerCase();
+    if (
+      sessionKind === "extended" &&
+      (trimmed === "/problem-set" || trimmed.startsWith("/problem-set "))
+    ) {
+      setShowCommandBuilder(true);
+    } else {
+      setShowCommandBuilder(false);
+    }
+  };
+
+  const handleCommandSelect = (command: string) => {
+    setMessage(command);
+    setShowCommandBuilder(false);
+  };
+
+  const handleCommandCancel = () => {
+    setShowCommandBuilder(false);
+  };
+
   return (
     <Box w="full" borderY="1px solid #333" bgColor="transparent" p={4}>
       <Box maxW="4xl" mx="auto">
         <Box position="relative">
+          {showCommandBuilder && (
+            <ProblemSetCommandBuilder
+              onSelect={handleCommandSelect}
+              onCancel={handleCommandCancel}
+            />
+          )}
           <Textarea
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => handleMessageChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={disabled}

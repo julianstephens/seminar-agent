@@ -13,6 +13,7 @@ import {
 import { useState } from "react";
 import { LuFileText } from "react-icons/lu";
 import { BackButton, ExportButton } from "../Button";
+import { useNavigate } from "react-router-dom";
 
 export const TutorialSessionHeader = ({
   detail,
@@ -32,6 +33,7 @@ export const TutorialSessionHeader = ({
         ? "This is a longer session examining recent artifacts, as well as reviewing and assigning problemsets."
         : "This is a tutorial session.",
   );
+  const navigate = useNavigate();
 
   return (
     <HStack
@@ -82,6 +84,20 @@ export const TutorialSessionHeader = ({
                 <Icon as={LuFileText} />
                 Artifacts
               </Button>
+              {detail.problem_set && (
+                <Button
+                  size="sm"
+                  className="grey"
+                  onClick={() =>
+                    navigate(
+                      `/tutorials/${detail.tutorial_id}/problem-sets/${detail.problem_set?.id} `,
+                    )
+                  }
+                >
+                  <Icon as={LuFileText} />
+                  Problem Set
+                </Button>
+              )}
               <ExportButton to={toExport} />
               <BackButton backPath={toBack} />
             </HStack>

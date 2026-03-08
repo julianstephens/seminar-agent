@@ -653,7 +653,7 @@ func (r *TutorialRepo) CreateProblemSet(
 			 status, tasks, review_notes)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, tutorial_id, owner_sub, week_of, 
-		          COALESCE(assigned_from_session_id, ''), status, tasks,
+		          COALESCE(assigned_from_session_id::text, ''), status, tasks,
 		          COALESCE(review_notes, ''), created_at, updated_at`
 
 	row := r.Pool.QueryRow(ctx, q,
@@ -694,7 +694,7 @@ func (r *TutorialRepo) GetProblemSetByWeek(
 	return scanProblemSet(row)
 }
 
-// GetProblemSetBySession returns the problem set assigned from a specific session.
+// GetProblemSetBySession returns the active (non-deleted) problem set assigned from a specific session.
 func (r *TutorialRepo) GetProblemSetBySession(
 	ctx context.Context,
 	sessionID, ownerSub string,
@@ -704,7 +704,7 @@ func (r *TutorialRepo) GetProblemSetBySession(
 		       COALESCE(assigned_from_session_id::text, ''), status, tasks,
 		       COALESCE(review_notes, ''), created_at, updated_at
 		FROM problem_sets
-		WHERE assigned_from_session_id = $1 AND owner_sub = $2`
+		WHERE assigned_from_session_id = $1 AND owner_sub = $2 AND status != 'deleted'`
 
 	row := r.Pool.QueryRow(ctx, q, sessionID, ownerSub)
 	return scanProblemSet(row)

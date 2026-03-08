@@ -34,7 +34,7 @@ import { useParams } from "react-router-dom";
 // ── Main component ────────────────────────────────────────────────────────────
 
 const TutorialSessionRunner = () => {
-  const { id } = useParams<{ id: string; }>();
+  const { id } = useParams<{ id: string }>();
   console.log("[TutorialSessionRunner] Component rendered, id:", id);
   const api = useApi();
   const unsubscribe = useTutorialSessionEventsUnsubscribe();
@@ -155,9 +155,9 @@ const TutorialSessionRunner = () => {
       setDetail((prev) =>
         prev
           ? {
-            ...prev,
-            artifacts: prev.artifacts.filter((a) => a.id !== artifact_id),
-          }
+              ...prev,
+              artifacts: prev.artifacts.filter((a) => a.id !== artifact_id),
+            }
           : prev,
       );
     },
@@ -169,7 +169,9 @@ const TutorialSessionRunner = () => {
       setStreamError(message);
       // Mark the last user turn as failed and clear any streaming state
       setTurns((prev) => {
-        const lastUserTurn = [...prev].reverse().find((t) => t.speaker === "user");
+        const lastUserTurn = [...prev]
+          .reverse()
+          .find((t) => t.speaker === "user");
         if (lastUserTurn) {
           setFailedTurns((failed) => new Set(failed).add(lastUserTurn.id));
         }
@@ -195,6 +197,7 @@ const TutorialSessionRunner = () => {
       session_id: id,
       speaker: "user",
       text,
+      failed: false,
       created_at: new Date().toISOString(),
     };
     setTurns((prev) => [...prev, optimisticUserTurn]);
@@ -263,9 +266,9 @@ const TutorialSessionRunner = () => {
       setDetail((prev) =>
         prev
           ? {
-            ...prev,
-            artifacts: prev.artifacts.filter((a) => a.id !== artifact.id),
-          }
+              ...prev,
+              artifacts: prev.artifacts.filter((a) => a.id !== artifact.id),
+            }
           : null,
       );
     } catch (e) {
@@ -417,6 +420,7 @@ const TutorialSessionRunner = () => {
         <ChatInput
           onSend={(message) => void handleSubmitTurn(message)}
           disabled={isTerminal}
+          sessionKind={detail.kind}
         />
 
         {/* D. Completion controls */}

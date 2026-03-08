@@ -207,7 +207,7 @@ task_addenda:
 
     Problem set rules
 
-    - include exactly 10 exercises, with only 5 being required
+    - include exactly 10 exercises, with 3 to 5 being required
     - each exercise targets one diagnosed pattern
     - avoid essay prompts
     - prefer precise corrective tasks
@@ -232,7 +232,8 @@ task_addenda:
           "pattern_code": "TEXT_DRIFT",
           "title": "Exercise title (5-8 words)",
           "description": "Brief description of what the exercise addresses (1-2 sentences)",
-          "prompt": "Full exercise prompt with complete instructions"
+          "prompt": "Full exercise prompt with complete instructions",
+          "required": true
         }
       ]
     }
@@ -246,7 +247,8 @@ task_addenda:
       RHETORICAL_INFLATION, SCOPE_CREEP, PREMATURE_SYNTHESIS, UNSUPPORTED_CONTRAST,
       COMPRESSED_INFERENCE, EXPLANATORY_SUBSTITUTION, FRAGMENTED_RECONSTRUCTION
     - Use UPPER_SNAKE_CASE for pattern codes (e.g., "TEXT_DRIFT", not "Text Drift")
-    - Include 10 tasks matching the 10 exercises in your Problem Set section, with only 5 being required
+    - Include 10 tasks matching the 10 exercises in your Problem Set section, with 3 to 5 being required
+    - Set "required": true for 3 to 5 exercises, and "required": false for the remaining optional ones
     - Ensure the "prompt" field contains the complete exercise instructions
     - This block is machine-parsed and will not be shown to students
 

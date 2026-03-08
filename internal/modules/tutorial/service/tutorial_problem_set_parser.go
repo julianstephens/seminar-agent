@@ -20,6 +20,7 @@ type ProblemSetTaskInput struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	Prompt      string `json:"prompt"`
+	Required    bool   `json:"required"` // Whether this task is required completion
 }
 
 // ParseProblemSetJSON extracts and parses the [PROBLEMSET_JSON]...[/PROBLEMSET_JSON] block
@@ -45,8 +46,13 @@ func ParseProblemSetJSON(agentResponse string) ([]ProblemSetTaskInput, error) {
 }
 
 // ConvertToProblemSetTasks converts parsed input tasks into domain.ProblemSetTask objects.
-// This validates the pattern codes.
+// This validates the pattern codes and validates the structure.
 func ConvertToProblemSetTasks(inputs []ProblemSetTaskInput) ([]domain.ProblemSetTask, error) {
+	// Validate problem set structure first
+	if err := ValidateProblemSetStructure(inputs); err != nil {
+		return nil, err
+	}
+
 	var tasks []domain.ProblemSetTask
 
 	for i, input := range inputs {
@@ -72,12 +78,38 @@ func ConvertToProblemSetTasks(inputs []ProblemSetTaskInput) ([]domain.ProblemSet
 			Title:       input.Title,
 			Description: input.Description,
 			Prompt:      input.Prompt,
+			Required:    input.Required,
 		}
 
 		tasks = append(tasks, task)
 	}
 
 	return tasks, nil
+}
+
+// ValidateProblemSetStructure validates that a problem set has the correct structure:
+// - Exactly 10 tasks
+// - 3 to 5 required tasks
+func ValidateProblemSetStructure(inputs []ProblemSetTaskInput) error {
+	// Check for exactly 10 tasks
+	if len(inputs) != 10 {
+		return fmt.Errorf("problem set must have exactly 10 tasks, got %d", len(inputs))
+	}
+
+	// Count required tasks
+	requiredCount := 0
+	for _, input := range inputs {
+		if input.Required {
+			requiredCount++
+		}
+	}
+
+	// Check for 3-5 required tasks
+	if requiredCount < 3 || requiredCount > 5 {
+		return fmt.Errorf("problem set must have 3 to 5 required tasks, got %d", requiredCount)
+	}
+
+	return nil
 }
 
 // StripProblemSetBlock removes the problem set JSON block from the agent response,
@@ -90,15 +122,17 @@ func StripProblemSetBlock(agentResponse string) string {
 // ── validation helpers ────────────────────────────────────────────────────────
 
 func isValidProblemSetPatternCode(code domain.DiagnosticPatternCode) bool {
-	switch code {
-	case domain.PatternUndefinedTerms,
-		domain.PatternTextDrift,
-		domain.PatternHiddenPremises,
-		domain.PatternWeakStructure,
-		domain.PatternRhetoricalInflation,
-		domain.PatternPrematureSynthesis:
-		return true
-	default:
+	// Accept any non-empty pattern code in UPPER_SNAKE_CASE format
+	// This allows for flexibility as new patterns are added over time
+	codeStr := string(code)
+	if codeStr == "" {
 		return false
 	}
+	// Basic validation: must contain only uppercase letters and underscores
+	for _, ch := range codeStr {
+		if !((ch >= 'A' && ch <= 'Z') || ch == '_') {
+			return false
+		}
+	}
+	return true
 }

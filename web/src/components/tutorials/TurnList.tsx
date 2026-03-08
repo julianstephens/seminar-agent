@@ -13,19 +13,18 @@ export const TutorialTurnList = ({
   failedTurns: Set<string>;
   bottomRef: React.RefObject<HTMLDivElement | null>;
 }) => {
-  // Show thinking spinner if: 
+  // Show thinking spinner if:
   // 1. There are active streaming turns (agent is currently responding), OR
-  // 2. Last turn is from user (waiting for agent response), OR
-  // 3. Last turn is a recent agent turn (likely still streaming if created < 60s ago)
+  // 2. Last turn is from user (waiting for agent response)
   const lastTurn = turns.length > 0 ? turns[turns.length - 1] : null;
-  const isRecentAgentTurn = lastTurn &&
-    lastTurn.speaker === "agent" &&
-    (Date.now() - new Date(lastTurn.created_at).getTime()) < 60000; // 60 seconds
 
   const agentThinking =
-    streamingTurns.size > 0 ||
-    (lastTurn && lastTurn.speaker === "user") ||
-    isRecentAgentTurn;
+    streamingTurns.size > 0 || (lastTurn && lastTurn.speaker === "user");
+
+  // Find streaming turns that don't have a corresponding turn in the turns array yet
+  const streamingOnlyTurnIds = Array.from(streamingTurns.keys()).filter(
+    (turnId) => !turns.some((t) => t.id === turnId),
+  );
 
   return (
     <Box
@@ -35,7 +34,7 @@ export const TutorialTurnList = ({
       overflowY="auto"
       mb={4}
     >
-      {turns.length === 0 ? (
+      {turns.length === 0 && streamingOnlyTurnIds.length === 0 ? (
         <Text color="gray.400" textAlign="center" mt={8}>
           Conversation will appear here. Submit a message to get started.
         </Text>
@@ -57,68 +56,18 @@ export const TutorialTurnList = ({
                   timestamp={new Date(t.created_at).toLocaleTimeString()}
                   failed={failedTurns.has(t.id)}
                 />
-                // <Box
-                //     key={t.id}
-                //     p={3}
-                //     borderLeft="4px solid"
-                //     borderLeftColor={
-                //         isUser ? "blue.500" : isSystem ? "gray.400" : "teal.500"
-                //     }
-                //     bg={isUser ? "blue.50" : isSystem ? "gray.100" : "teal.50"}
-                //     _dark={{
-                //         bg: isUser
-                //             ? "blue.900"
-                //             : isSystem
-                //                 ? "gray.700"
-                //                 : "teal.900",
-                //     }}
-                //     rounded="md"
-                //     opacity={isSystem ? 0.8 : 1}
-                // >
-                //     <HStack mb={2} gap={2} wrap="wrap">
-                //         <Badge
-                //             colorScheme={isUser ? "blue" : isSystem ? "gray" : "teal"}
-                //             size="md"
-                //             fontWeight="bold"
-                //         >
-                //             {isUser ? "👤 You" : isSystem ? "⚙ System" : "🤖 Agent"}
-                //         </Badge>
-                //         {isStreaming && (
-                //             <Badge colorScheme="purple" size="sm">
-                //                 streaming...
-                //             </Badge>
-                //         )}
-                //     </HStack>
-                //     <Text fontSize="sm" whiteSpace="pre-wrap" lineHeight="1.6">
-                //         {displayText}
-                //         {isStreaming && (
-                //             <Box
-                //                 as="span"
-                //                 display="inline-block"
-                //                 w="2px"
-                //                 h="1em"
-                //                 bg="currentColor"
-                //                 ml={0.5}
-                //                 css={css`
-                //                     animation: blink 1s infinite;
-                //                     @keyframes blink {
-                //                         0%, 49% {
-                //                             opacity: 1;
-                //                         }
-                //                         50%, 100% {
-                //                             opacity: 0;
-                //                         }
-                //                     }
-                //                 `}
-                //             />
-                //         )}
-                //     </Text>
-                //     <Text fontSize="xs" color="gray.400" mt={1}>
-                //         {new Date(t.created_at).toLocaleTimeString()}
-                //     </Text>
-                // </Box>
               );
             })}
+          {/* Render streaming-only agent responses (not yet in turns array) */}
+          {streamingOnlyTurnIds.map((turnId) => (
+            <ChatMessage
+              key={turnId}
+              role="agent"
+              content={streamingTurns.get(turnId) ?? ""}
+              timestamp={new Date().toLocaleTimeString()}
+              failed={false}
+            />
+          ))}
           {agentThinking && (
             <HStack gap={2} w="full" px={3} py={2}>
               <Spinner size="sm" />
