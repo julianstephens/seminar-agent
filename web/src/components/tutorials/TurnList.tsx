@@ -13,19 +13,13 @@ export const TutorialTurnList = ({
   failedTurns: Set<string>;
   bottomRef: React.RefObject<HTMLDivElement | null>;
 }) => {
-  // Show thinking spinner if: 
+  // Show thinking spinner if:
   // 1. There are active streaming turns (agent is currently responding), OR
-  // 2. Last turn is from user (waiting for agent response), OR
-  // 3. Last turn is a recent agent turn (likely still streaming if created < 60s ago)
+  // 2. Last turn is from user (waiting for agent response)
   const lastTurn = turns.length > 0 ? turns[turns.length - 1] : null;
-  const isRecentAgentTurn = lastTurn &&
-    lastTurn.speaker === "agent" &&
-    (Date.now() - new Date(lastTurn.created_at).getTime()) < 60000; // 60 seconds
 
   const agentThinking =
-    streamingTurns.size > 0 ||
-    (lastTurn && lastTurn.speaker === "user") ||
-    isRecentAgentTurn;
+    streamingTurns.size > 0 || (lastTurn && lastTurn.speaker === "user");
 
   return (
     <Box

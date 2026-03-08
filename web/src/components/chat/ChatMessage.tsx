@@ -9,7 +9,12 @@ interface ChatMessageProps {
   failed?: boolean;
 }
 
-export function ChatMessage({ role, content, timestamp, failed }: ChatMessageProps) {
+export function ChatMessage({
+  role,
+  content,
+  timestamp,
+  failed,
+}: ChatMessageProps) {
   const isUser = role === "user";
 
   return (
@@ -38,7 +43,13 @@ export function ChatMessage({ role, content, timestamp, failed }: ChatMessagePro
             </Box>
           )}
           {failed && (
-            <Box display="flex" alignItems="center" gap={1} color="#ef4444" fontSize="xs">
+            <Box
+              display="flex"
+              alignItems="center"
+              gap={1}
+              color="#ef4444"
+              fontSize="xs"
+            >
               <Icon as={LuCircleAlert} w={3} h={3} />
               <Box as="span">Failed</Box>
             </Box>
