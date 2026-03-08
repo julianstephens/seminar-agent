@@ -56,15 +56,7 @@ fmt:
 ## lint: Run linters
 lint:
 	@echo "Running golangci-lint..."
-	@if command -v golangci-lint >/dev/null 2>&1; then \
-		golangci-lint run --timeout=5m; \
-	elif [ -x "$(shell go env GOPATH)/bin/golangci-lint" ]; then \
-		$(shell go env GOPATH)/bin/golangci-lint run --timeout=5m; \
-	else \
-		echo "golangci-lint not found. Install it with:"; \
-		echo "  curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b \$$(go env GOPATH)/bin v1.62.2"; \
-		exit 1; \
-	fi
+	@golangci-lint run	
 	@echo "Linting complete"
 
 check: fmt lint test
