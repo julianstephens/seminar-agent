@@ -83,7 +83,7 @@ def main():
 
     args = parser.parse_args()
 
-    root_dir = Path(__file__).parent
+    root_dir = Path(__file__).parent.parent
     changelog_path = root_dir / "CHANGELOG.md"
 
     print(f"Reading {changelog_path}...")
