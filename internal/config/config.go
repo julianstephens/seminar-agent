@@ -45,7 +45,7 @@ type Config struct {
 func Load() (*Config, error) {
 	cfg := &Config{
 		Port:             getEnv("PORT", "8080"),
-		Env:              getEnv("APP_ENV", "development"),
+		Env:              getEnv("APP_ENV", "dev"),
 		AllowedOrigins:   strings.Split(getEnv("ALLOWED_ORIGINS", ""), ","),
 		DatabaseURL:      os.Getenv("DATABASE_URL"),
 		Auth0Domain:      os.Getenv("AUTH0_DOMAIN"),
@@ -111,7 +111,17 @@ func LoadFromInfisical() (*Config, error) {
 		return nil, fmt.Errorf("infisical list secrets: %w", err)
 	}
 
-	var cfg Config
+	// Initialize config with default values
+	cfg := &Config{
+		Port:             "8080",
+		Env:              "dev",
+		OpenAIModel:      "gpt-5",
+		EnableStreaming:  true,
+		TimerTickSeconds: 2,
+		S3Region:         "us-east-1",
+	}
+
+	// Override defaults with values from Infisical
 	for _, s := range secrets {
 		switch s.SecretKey {
 		case "PORT":
@@ -146,7 +156,12 @@ func LoadFromInfisical() (*Config, error) {
 			cfg.S3Region = s.SecretValue
 		}
 	}
-	return &cfg, nil
+
+	if err := cfg.validate(); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
 }
 
 func (c *Config) validate() error {

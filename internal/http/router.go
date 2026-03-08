@@ -1,6 +1,7 @@
 package http
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -87,6 +88,7 @@ func NewRouter(deps RouterDeps) *gin.Engine {
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
+	baseLogger.Debug(fmt.Sprintf("allowed origins: %s", deps.Config.AllowedOrigins))
 
 	// ── Health ────────────────────────────────────────────────────────────────
 	r.GET("/health", func(c *gin.Context) {
