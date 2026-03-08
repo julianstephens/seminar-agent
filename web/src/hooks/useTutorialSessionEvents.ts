@@ -84,6 +84,7 @@ export function useTutorialSessionEvents(
     const controller = new AbortController();
 
     async function connect() {
+      let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
       try {
         console.log(
           "[SSE] Connecting to:",
@@ -108,7 +109,7 @@ export function useTutorialSessionEvents(
         }
 
         console.log("[SSE] Connection established, starting to read stream");
-        const reader = res.body.getReader();
+        reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buf = "";
 
@@ -183,7 +184,7 @@ export function useTutorialSessionEvents(
         cancelled = true;
         console.log("[SSE] Cleaning up connection");
         try {
-          reader.cancel();
+          reader?.cancel();
         } catch {
           // Ignore errors when cancelling reader
         }
