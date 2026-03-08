@@ -80,7 +80,7 @@ func NewRouter(deps RouterDeps) *gin.Engine {
 
 	// CORS — tighten origins in production via env
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowOrigins:     deps.Config.AllowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length", "Content-Type"},

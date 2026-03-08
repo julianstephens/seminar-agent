@@ -19,6 +19,6 @@ WORKDIR /app
 COPY --from=builder /app/bin/formation .
 COPY --from=builder /app/migrations ./migrations
 
-EXPOSE 8080
+EXPOSE 4003
 
 CMD ["./formation"]

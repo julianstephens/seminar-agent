@@ -1,0 +1,50 @@
+name: Validation
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Golang
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25"
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.10
+
+      - name: Run tests
+        run: go test -v ./...
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Install dependencies
+        working-directory: ./web
+        run: npm install
+
+      - name: Run format check
+        working-directory: ./web
+        run: npm run format:check
+
+      - name: Run lint
+        working-directory: ./web
+        run: npm run lint

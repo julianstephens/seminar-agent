@@ -1,0 +1,29 @@
+{
+  "projectId": "tk8gc8sg0k0wo4ok8g84k004",
+  "destinationId": "ugsk8w0w0c0oc08wc4488s4w",
+  "serverId": "jk8w8scsg0gkw804ockg8g80",
+  "environmentName": "production",
+  "resources": [
+    {
+      "name": "formation-web",
+      "description": "The formation UI service.",
+      "dockerImageName": "ghcr.io/julianstephens/formation-web",
+      "domains": "http://formation.cyborgdev.cloud",
+      "portsExposes": "80"
+    },
+    {
+      "name": "formation-api",
+      "description": "The formation API service.",
+      "dockerImageName": "ghcr.io/julianstephens/formation-api",
+      "domains": "http://formation-api.cyborgdev.cloud",
+      "portsExposes": "4003",
+      "healthCheck": {
+        "path": "/health",
+        "port": "4003",
+        "interval": 10,
+        "timeout": 5,
+        "startPeriod": 20
+      }
+    }
+  ]
+}

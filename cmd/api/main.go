@@ -11,10 +11,11 @@ import (
 )
 
 func main() {
-	// Load configuration from environment
-	cfg, err := config.Load()
+	// Load configuration from Infisical
+	cfg, err := config.LoadFromInfisical()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
+		os.Exit(1)
 	}
 
 	// Create app instance
