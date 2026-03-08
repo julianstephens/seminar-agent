@@ -151,3 +151,126 @@ func isValidationError(err error, target **ValidationError) bool {
 	}
 	return ok
 }
+
+// ── parseProblemSetCommandOptions ────────────────────────────────────────────
+
+func TestParseProblemSetCommandOptions_defaults(t *testing.T) {
+	t.Parallel()
+	opts, err := parseProblemSetCommandOptions("/problem-set")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if opts.Patterns != "auto" {
+		t.Errorf("expected patterns=auto, got %s", opts.Patterns)
+	}
+	if opts.Difficulty != "intermediate" {
+		t.Errorf("expected difficulty=intermediate, got %s", opts.Difficulty)
+	}
+	if opts.Mode != "commit" {
+		t.Errorf("expected mode=commit, got %s", opts.Mode)
+	}
+}
+
+func TestParseProblemSetCommandOptions_allOptions(t *testing.T) {
+	t.Parallel()
+	opts, err := parseProblemSetCommandOptions("/problem-set /patterns TEXT_DRIFT /difficulty advanced /mode preview")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if opts.Patterns != "TEXT_DRIFT" {
+		t.Errorf("expected patterns=TEXT_DRIFT, got %s", opts.Patterns)
+	}
+	if opts.Difficulty != "advanced" {
+		t.Errorf("expected difficulty=advanced, got %s", opts.Difficulty)
+	}
+	if opts.Mode != "preview" {
+		t.Errorf("expected mode=preview, got %s", opts.Mode)
+	}
+}
+
+func TestParseProblemSetCommandOptions_partialOptions(t *testing.T) {
+	t.Parallel()
+	opts, err := parseProblemSetCommandOptions("/problem-set /difficulty beginner")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if opts.Patterns != "auto" {
+		t.Errorf("expected patterns=auto (default), got %s", opts.Patterns)
+	}
+	if opts.Difficulty != "beginner" {
+		t.Errorf("expected difficulty=beginner, got %s", opts.Difficulty)
+	}
+	if opts.Mode != "commit" {
+		t.Errorf("expected mode=commit (default), got %s", opts.Mode)
+	}
+}
+
+func TestParseProblemSetCommandOptions_invalidDifficulty(t *testing.T) {
+	t.Parallel()
+	_, err := parseProblemSetCommandOptions("/problem-set /difficulty hard")
+	if err == nil {
+		t.Fatal("expected validation error for invalid difficulty, got nil")
+	}
+	var ve *ValidationError
+	if !isValidationError(err, &ve) {
+		t.Fatalf("expected ValidationError, got %T: %v", err, err)
+	}
+}
+
+func TestParseProblemSetCommandOptions_invalidMode(t *testing.T) {
+	t.Parallel()
+	_, err := parseProblemSetCommandOptions("/problem-set /mode draft")
+	if err == nil {
+		t.Fatal("expected validation error for invalid mode, got nil")
+	}
+	var ve *ValidationError
+	if !isValidationError(err, &ve) {
+		t.Fatalf("expected ValidationError, got %T: %v", err, err)
+	}
+}
+
+func TestParseProblemSetCommandOptions_missingValue(t *testing.T) {
+	t.Parallel()
+	_, err := parseProblemSetCommandOptions("/problem-set /patterns")
+	if err == nil {
+		t.Fatal("expected validation error for missing patterns value, got nil")
+	}
+	var ve *ValidationError
+	if !isValidationError(err, &ve) {
+		t.Fatalf("expected ValidationError, got %T: %v", err, err)
+	}
+}
+
+func TestParseProblemSetCommandOptions_unknownOption(t *testing.T) {
+	t.Parallel()
+	_, err := parseProblemSetCommandOptions("/problem-set /unknown value")
+	if err == nil {
+		t.Fatal("expected validation error for unknown option, got nil")
+	}
+	var ve *ValidationError
+	if !isValidationError(err, &ve) {
+		t.Fatalf("expected ValidationError, got %T: %v", err, err)
+	}
+}
+
+// ── mapCommandDifficultyToPromptDifficulty ───────────────────────────────────
+
+func TestMapCommandDifficultyToPromptDifficulty(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"beginner", "basic"},
+		{"intermediate", "standard"},
+		{"advanced", "rigorous"},
+		{"invalid", "standard"}, // fallback
+	}
+
+	for _, tt := range tests {
+		got := mapCommandDifficultyToPromptDifficulty(tt.input)
+		if got != tt.want {
+			t.Errorf("mapCommandDifficultyToPromptDifficulty(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}

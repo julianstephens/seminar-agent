@@ -8,6 +8,7 @@ type ProblemSetTask struct {
 	Title       string                `json:"title"`
 	Description string                `json:"description"`
 	Prompt      string                `json:"prompt"`
+	Required    bool                  `json:"required"` // Whether this task is required (true) or optional (false)
 }
 
 // ProblemSet is a structured assignment generated from recurring patterns

@@ -165,6 +165,13 @@ func (a *Assembler) Assemble(p AssembleParams) ([]Message, error) {
 
 	// Append conversation history.
 	for _, t := range p.Turns {
+		// Skip turns with empty text to avoid OpenAI API errors
+		if strings.TrimSpace(t.Text) == "" {
+			slog.Warn("skipping turn with empty text",
+				"speaker", t.Speaker,
+			)
+			continue
+		}
 		messages = append(messages, Message{
 			Role:    speakerToRole(t.Speaker),
 			Content: t.Text,
@@ -352,6 +359,13 @@ func (a *TutorialAssembler) AssembleTutorial(p TutorialAssembleParams) ([]Messag
 
 	// 8. conversation turns
 	for _, t := range p.Turns {
+		// Skip turns with empty text to avoid OpenAI API errors
+		if strings.TrimSpace(t.Text) == "" {
+			slog.Warn("skipping tutorial turn with empty text",
+				"speaker", t.Speaker,
+			)
+			continue
+		}
 		messages = append(messages, Message{
 			Role:    speakerToRole(t.Speaker),
 			Content: t.Text,

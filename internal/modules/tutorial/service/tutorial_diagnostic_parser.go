@@ -92,17 +92,19 @@ func StripDiagnosticBlock(agentResponse string) string {
 // ── validation helpers ────────────────────────────────────────────────────────
 
 func isValidPatternCode(code domain.DiagnosticPatternCode) bool {
-	switch code {
-	case domain.PatternUndefinedTerms,
-		domain.PatternTextDrift,
-		domain.PatternHiddenPremises,
-		domain.PatternWeakStructure,
-		domain.PatternRhetoricalInflation,
-		domain.PatternPrematureSynthesis:
-		return true
-	default:
+	// Accept any non-empty pattern code in UPPER_SNAKE_CASE format
+	// This allows for flexibility as new patterns are added over time
+	codeStr := string(code)
+	if codeStr == "" {
 		return false
 	}
+	// Basic validation: must contain only uppercase letters and underscores
+	for _, ch := range codeStr {
+		if !((ch >= 'A' && ch <= 'Z') || ch == '_') {
+			return false
+		}
+	}
+	return true
 }
 
 func isValidStatus(status domain.DiagnosticStatus) bool {

@@ -197,6 +197,7 @@ const TutorialSessionRunner = () => {
       session_id: id,
       speaker: "user",
       text,
+      failed: false,
       created_at: new Date().toISOString(),
     };
     setTurns((prev) => [...prev, optimisticUserTurn]);
@@ -419,6 +420,7 @@ const TutorialSessionRunner = () => {
         <ChatInput
           onSend={(message) => void handleSubmitTurn(message)}
           disabled={isTerminal}
+          sessionKind={detail.kind}
         />
 
         {/* D. Completion controls */}

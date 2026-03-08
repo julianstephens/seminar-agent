@@ -555,13 +555,25 @@ func (s *TutorialTurnService) SubmitTutorialTurn(
 	if err != nil {
 		return nil, err
 	}
-	// If /problem-set command, ensure no problem set already exists for this session.
+
+	// Parse command options if this is a /problem-set command.
+	// We'll use these options throughout the function.
+	var cmdOpts *problemSetCommandOptions
 	if cmd == tutorialCommandProblemSet {
-		existing, psErr := s.repo.GetProblemSetBySession(ctx, sessionID, ownerSub)
-		if psErr == nil && existing != nil {
-			return nil, &ValidationError{
-				Field:   "text",
-				Message: "a problem set already exists for this session; delete it before generating a new one",
+		opts, err := parseProblemSetCommandOptions(text)
+		if err != nil {
+			return nil, err
+		}
+		cmdOpts = &opts
+
+		// Ensure no problem set already exists for this session (only for commit mode).
+		if cmdOpts.Mode == "commit" {
+			existing, psErr := s.repo.GetProblemSetBySession(ctx, sessionID, ownerSub)
+			if psErr == nil && existing != nil {
+				return nil, &ValidationError{
+					Field:   "text",
+					Message: "a problem set already exists for this session; delete it before generating a new one",
+				}
 			}
 		}
 	}
@@ -722,12 +734,19 @@ func (s *TutorialTurnService) SubmitTutorialTurn(
 		previousProblemSetText = formatProblemSet(*previousProblemSet)
 	}
 
+	// Determine difficulty level for the prompt.
+	// If this is a /problem-set command, use the command's difficulty; otherwise use tutorial difficulty.
+	promptDifficulty := tutorial.Difficulty
+	if cmdOpts != nil {
+		promptDifficulty = mapCommandDifficultyToPromptDifficulty(cmdOpts.Difficulty)
+	}
+
 	// Assemble the prompt.
 	messages, err := s.assembler.AssembleTutorial(agent.TutorialAssembleParams{
 		TutorialTitle:      tutorial.Title,
 		SessionKind:        sessionKind,
 		TaskMode:           taskMode,
-		Difficulty:         tutorial.Difficulty,
+		Difficulty:         promptDifficulty,
 		WeekOf:             weekOf.Format("2006-01-02"),
 		Artifacts:          artifactsText,
 		PriorDiagnostics:   priorDiagnosticsSummary,
@@ -880,6 +899,11 @@ func (s *TutorialTurnService) SubmitTutorialTurn(
 	// ── Parse and persist problem set (extended sessions only) ──
 
 	if sess.Kind == domain.TutorialSessionKindExtended {
+		logger.Info("attempting to parse problem set from agent response",
+			"session_id", sessionID,
+			"task_mode", taskMode,
+			"is_problemset_command", cmd == tutorialCommandProblemSet,
+		)
 		problemSetInputs, err := ParseProblemSetJSON(agentText)
 		if err != nil {
 			logger.Error("failed to parse problem set JSON block",
@@ -887,47 +911,68 @@ func (s *TutorialTurnService) SubmitTutorialTurn(
 				"error", err.Error(),
 			)
 			// Continue without problem set rather than failing
-		} else if len(problemSetInputs) > 0 {
-			// Check if a problem set already exists for this session
-			existingPS, err := s.repo.GetProblemSetBySession(ctx, sessionID, ownerSub)
-			if err != nil && !errors.Is(err, sharedRepo.ErrNotFound) {
-				logger.Error("failed to check for existing problem set",
+		} else if len(problemSetInputs) == 0 {
+			// No problem set found in agent response
+			// Log warning if this was a /problem-set command (expected generation)
+			if cmd == tutorialCommandProblemSet {
+				logger.Warn("problem set command was issued but agent response contains no [PROBLEMSET_JSON] block",
 					"session_id", sessionID,
-					"error", err.Error(),
+					"task_mode", taskMode,
 				)
-			} else if existingPS != nil {
-				logger.Info("problem set already exists for this session, skipping creation",
+			}
+		} else if len(problemSetInputs) > 0 {
+			logger.Info("parsed problem set from agent response",
+				"session_id", sessionID,
+				"task_count", len(problemSetInputs),
+			)
+			// Check if mode is preview - if so, skip persistence
+			if cmdOpts != nil && cmdOpts.Mode == "preview" {
+				logger.Info("problem set generated in preview mode, skipping persistence",
 					"session_id", sessionID,
-					"problem_set_id", existingPS.ID,
+					"task_count", len(problemSetInputs),
 				)
 			} else {
-				// No existing problem set, create one
-				problemSetTasks, err := ConvertToProblemSetTasks(problemSetInputs)
-				if err != nil {
-					logger.Error("failed to convert problem set tasks",
+				// Check if a problem set already exists for this session
+				existingPS, err := s.repo.GetProblemSetBySession(ctx, sessionID, ownerSub)
+				if err != nil && !errors.Is(err, sharedRepo.ErrNotFound) {
+					logger.Error("failed to check for existing problem set",
 						"session_id", sessionID,
 						"error", err.Error(),
 					)
+				} else if existingPS != nil {
+					logger.Info("problem set already exists for this session, skipping creation",
+						"session_id", sessionID,
+						"problem_set_id", existingPS.ID,
+					)
 				} else {
-					newProblemSet := domain.ProblemSet{
-						TutorialID:            sess.TutorialID,
-						OwnerSub:              ownerSub,
-						WeekOf:                weekOf,
-						AssignedFromSessionID: sessionID,
-						Status:                "assigned",
-						Tasks:                 problemSetTasks,
-					}
-					_, err = s.repo.CreateProblemSet(ctx, ownerSub, newProblemSet)
+					// No existing problem set, create one
+					problemSetTasks, err := ConvertToProblemSetTasks(problemSetInputs)
 					if err != nil {
-						logger.Error("failed to create problem set",
+						logger.Error("failed to convert problem set tasks",
 							"session_id", sessionID,
 							"error", err.Error(),
 						)
 					} else {
-						logger.Info("successfully created problem set from agent response",
-							"session_id", sessionID,
-							"task_count", len(problemSetTasks),
-						)
+						newProblemSet := domain.ProblemSet{
+							TutorialID:            sess.TutorialID,
+							OwnerSub:              ownerSub,
+							WeekOf:                weekOf,
+							AssignedFromSessionID: sessionID,
+							Status:                "assigned",
+							Tasks:                 problemSetTasks,
+						}
+						_, err = s.repo.CreateProblemSet(ctx, ownerSub, newProblemSet)
+						if err != nil {
+							logger.Error("failed to create problem set",
+								"session_id", sessionID,
+								"error", err.Error(),
+							)
+						} else {
+							logger.Info("successfully created problem set from agent response",
+								"session_id", sessionID,
+								"task_count", len(problemSetTasks),
+							)
+						}
 					}
 				}
 			}
@@ -1097,6 +1142,13 @@ const (
 	tutorialCommandProblemSet                 // /problem-set
 )
 
+// problemSetCommandOptions holds parsed options for the /problem-set command.
+type problemSetCommandOptions struct {
+	Patterns   string // "auto" or comma-separated pattern codes
+	Difficulty string // "beginner", "intermediate", or "advanced"
+	Mode       string // "preview" or "commit"
+}
+
 // parseAndValidateTutorialCommand parses a slash command from text and validates
 // it against the current session state. Returns tutorialCommandNone if text is
 // not a slash command, or a ValidationError if the command is rejected.
@@ -1130,6 +1182,103 @@ func parseAndValidateTutorialCommand(text string, sess *domain.TutorialSession) 
 			Field:   "text",
 			Message: fmt.Sprintf("unknown command: %s", token),
 		}
+	}
+}
+
+// parseProblemSetCommandOptions parses options from a /problem-set command.
+// Returns default values for any unspecified options.
+func parseProblemSetCommandOptions(text string) (problemSetCommandOptions, error) {
+	// Default values
+	opts := problemSetCommandOptions{
+		Patterns:   "auto",
+		Difficulty: "intermediate",
+		Mode:       "commit",
+	}
+
+	fields := strings.Fields(strings.TrimSpace(text))
+	if len(fields) == 0 || fields[0] != "/problem-set" {
+		return opts, fmt.Errorf("text is not a /problem-set command")
+	}
+
+	// Parse options starting after the command token
+	for i := 1; i < len(fields); i++ {
+		opt := fields[i]
+		if !strings.HasPrefix(opt, "/") {
+			continue // Skip non-option tokens
+		}
+
+		optName := opt[1:] // Remove leading /
+		switch optName {
+		case "patterns":
+			if i+1 >= len(fields) {
+				return opts, &ValidationError{
+					Field:   "text",
+					Message: "/patterns option requires a value (e.g., /patterns auto or /patterns TEXT_DRIFT,UNDEFINED_TERMS)",
+				}
+			}
+			i++
+			opts.Patterns = fields[i]
+
+		case "difficulty":
+			if i+1 >= len(fields) {
+				return opts, &ValidationError{
+					Field:   "text",
+					Message: "/difficulty option requires a value: beginner, intermediate, or advanced",
+				}
+			}
+			i++
+			difficulty := fields[i]
+			if difficulty != "beginner" && difficulty != "intermediate" && difficulty != "advanced" {
+				return opts, &ValidationError{
+					Field: "text",
+					Message: fmt.Sprintf(
+						"invalid difficulty: %s (must be beginner, intermediate, or advanced)",
+						difficulty,
+					),
+				}
+			}
+			opts.Difficulty = difficulty
+
+		case "mode":
+			if i+1 >= len(fields) {
+				return opts, &ValidationError{
+					Field:   "text",
+					Message: "/mode option requires a value: preview or commit",
+				}
+			}
+			i++
+			mode := fields[i]
+			if mode != "preview" && mode != "commit" {
+				return opts, &ValidationError{
+					Field:   "text",
+					Message: fmt.Sprintf("invalid mode: %s (must be preview or commit)", mode),
+				}
+			}
+			opts.Mode = mode
+
+		default:
+			return opts, &ValidationError{
+				Field:   "text",
+				Message: fmt.Sprintf("unknown /problem-set option: /%s", optName),
+			}
+		}
+	}
+
+	return opts, nil
+}
+
+// mapCommandDifficultyToPromptDifficulty maps user-facing difficulty levels to prompt difficulty levels.
+// beginner -> basic, intermediate -> standard, advanced -> rigorous
+func mapCommandDifficultyToPromptDifficulty(cmdDifficulty string) string {
+	switch cmdDifficulty {
+	case "beginner":
+		return "basic"
+	case "intermediate":
+		return "standard"
+	case "advanced":
+		return "rigorous"
+	default:
+		return "standard" // fallback to standard
 	}
 }
 
