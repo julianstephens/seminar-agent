@@ -37,7 +37,7 @@ const statusIcon: Record<string, IconType> = {
   deleted: LuCircleAlert,
 };
 
-const ProblemSetButton = ({ ps }: { ps: ProblemSet; }) => {
+const ProblemSetButton = ({ ps }: { ps: ProblemSet }) => {
   const navigate = useNavigate();
   const patterns = [
     ...new Set(

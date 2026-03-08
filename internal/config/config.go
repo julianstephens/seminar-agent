@@ -84,7 +84,9 @@ func LoadFromInfisical() (*Config, error) {
 	client_id := os.Getenv("INFISICAL_CLIENT_ID")
 	client_secret := os.Getenv("INFISICAL_CLIENT_SECRET")
 	if client_id == "" || client_secret == "" {
-		return nil, fmt.Errorf("infisical: INFISICAL_CLIENT_ID and INFISICAL_CLIENT_SECRET environment variables are required")
+		return nil, fmt.Errorf(
+			"infisical: INFISICAL_CLIENT_ID and INFISICAL_CLIENT_SECRET environment variables are required",
+		)
 	}
 	if _, err := client.Auth().UniversalAuthLogin(client_id, client_secret); err != nil {
 		return nil, fmt.Errorf("infisical auth: %w", err)
