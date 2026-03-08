@@ -7,18 +7,18 @@
     {
       "name": "formation-web",
       "description": "The formation UI service.",
-      "dockerImageName": "ghcr.io/julianstephens/formation-web",
-      "envSecretName": "COOLIFY_FORMATION_WEB",
+      "dockerImageName": "ghcr.io/julianstephens/formation/formation-web",
+      "envSecretName": "COOLIFY_ENV_WEB",
       "domains": "http://formation.cyborgdev.cloud",
       "portsExposes": "80"
     },
     {
       "name": "formation-api",
       "description": "The formation API service.",
-      "dockerImageName": "ghcr.io/julianstephens/formation-api",
+      "dockerImageName": "ghcr.io/julianstephens/formation/formation-api",
       "domains": "http://formation-api.cyborgdev.cloud",
       "portsExposes": "4003",
-      "envSecretName": "COOLIFY_FORMATION_API",
+      "envSecretName": "COOLIFY_ENV_API",
       "healthCheck": {
         "path": "/health",
         "port": "4003",
