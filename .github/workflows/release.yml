@@ -117,6 +117,7 @@ jobs:
             echo "Warning: COOLIFY_ENDPOINT_URL or COOLIFY_TOKEN not set, skipping deployment"
             exit 0
           fi
+          echo $"Using COOLIFY_ENDPOINT_URL: $COOLIFY_ENDPOINT_URL"
           if [ ! -f "$MANIFEST_PATH" ]; then
             echo "Warning: Manifest file not found at $MANIFEST_PATH, skipping deployment"
             exit 0
