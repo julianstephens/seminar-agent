@@ -47,7 +47,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_API }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_API }}:${{ steps.sha.outputs.sha }}
-                    cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_API }}:cache
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_API }}:cache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_API }}:cache,mode=max
 
   build-and-push-web:
@@ -77,7 +77,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_WEB }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_WEB }}:${{ steps.sha.outputs.sha }}
-                    cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_WEB }}:cache
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_WEB }}:cache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_WEB }}:cache,mode=max
           build-args: |
             ${{ format('VITE_AUTH0_DOMAIN={0}', secrets.VITE_AUTH0_DOMAIN) || '' }}
