@@ -1,9 +1,10 @@
-import type { TutorialSessionKind } from "@/lib/types";
+import type { Artifact, TutorialSessionKind } from "@/lib/types";
 import { Box, Button, Flex, Icon, Span, Textarea } from "@chakra-ui/react";
 import { type KeyboardEvent, useMemo, useState } from "react";
 import { LuSend } from "react-icons/lu";
 import { COMMANDS } from "./commands";
 import { CommandSuggestions } from "./CommandSuggestions";
+import { DiagnoseCommandBuilder } from "./DiagnoseCommandBuilder";
 import { ProblemSetCommandBuilder } from "./ProblemSetCommandBuilder";
 import { ReviewProblemSetCommandBuilder } from "./ReviewProblemSetCommandBuilder";
 
@@ -12,6 +13,7 @@ interface ChatInputProps {
   disabled?: boolean;
   placeholder?: string;
   sessionKind?: TutorialSessionKind;
+  artifacts?: Artifact[];
 }
 
 export function ChatInput({
@@ -19,10 +21,13 @@ export function ChatInput({
   disabled,
   placeholder = "Your message...",
   sessionKind,
+  artifacts,
 }: ChatInputProps) {
   const [message, setMessage] = useState("");
   const [showCommandBuilder, setShowCommandBuilder] = useState(false);
   const [showReviewCommandBuilder, setShowReviewCommandBuilder] =
+    useState(false);
+  const [showDiagnoseCommandBuilder, setShowDiagnoseCommandBuilder] =
     useState(false);
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
 
@@ -32,6 +37,7 @@ export function ChatInput({
     if (
       showCommandBuilder ||
       showReviewCommandBuilder ||
+      showDiagnoseCommandBuilder ||
       !message.startsWith("/") ||
       message.includes(" ")
     )
@@ -41,7 +47,13 @@ export function ChatInput({
       if (cmd.sessionKind && cmd.sessionKind !== sessionKind) return false;
       return cmd.name.startsWith(query);
     });
-  }, [message, showCommandBuilder, showReviewCommandBuilder, sessionKind]);
+  }, [
+    message,
+    showCommandBuilder,
+    showReviewCommandBuilder,
+    showDiagnoseCommandBuilder,
+    sessionKind,
+  ]);
 
   const showSuggestions = filteredCommands.length > 0;
 
@@ -51,6 +63,7 @@ export function ChatInput({
       setMessage("");
       setShowCommandBuilder(false);
       setShowReviewCommandBuilder(false);
+      setShowDiagnoseCommandBuilder(false);
       setSelectedCommandIndex(0);
     }
   };
@@ -85,11 +98,14 @@ export function ChatInput({
     // Close command builder on Escape
     if (
       e.key === "Escape" &&
-      (showCommandBuilder || showReviewCommandBuilder)
+      (showCommandBuilder ||
+        showReviewCommandBuilder ||
+        showDiagnoseCommandBuilder)
     ) {
       e.preventDefault();
       setShowCommandBuilder(false);
       setShowReviewCommandBuilder(false);
+      setShowDiagnoseCommandBuilder(false);
       return;
     }
 
@@ -107,6 +123,7 @@ export function ChatInput({
     ) {
       setShowCommandBuilder(true);
       setShowReviewCommandBuilder(false);
+      setShowDiagnoseCommandBuilder(false);
     } else if (
       sessionKind === "extended" &&
       (trimmed === "/review-problem-set" ||
@@ -114,9 +131,15 @@ export function ChatInput({
     ) {
       setShowReviewCommandBuilder(true);
       setShowCommandBuilder(false);
+      setShowDiagnoseCommandBuilder(false);
+    } else if (trimmed === "/diagnose" || trimmed.startsWith("/diagnose ")) {
+      setShowDiagnoseCommandBuilder(true);
+      setShowCommandBuilder(false);
+      setShowReviewCommandBuilder(false);
     } else {
       setShowCommandBuilder(false);
       setShowReviewCommandBuilder(false);
+      setShowDiagnoseCommandBuilder(false);
     }
   };
 
@@ -137,11 +160,13 @@ export function ChatInput({
     setMessage(command);
     setShowCommandBuilder(false);
     setShowReviewCommandBuilder(false);
+    setShowDiagnoseCommandBuilder(false);
   };
 
   const handleCommandCancel = () => {
     setShowCommandBuilder(false);
     setShowReviewCommandBuilder(false);
+    setShowDiagnoseCommandBuilder(false);
   };
 
   return (
@@ -156,6 +181,13 @@ export function ChatInput({
           )}
           {showReviewCommandBuilder && (
             <ReviewProblemSetCommandBuilder
+              onSelect={handleCommandSelect}
+              onCancel={handleCommandCancel}
+            />
+          )}
+          {showDiagnoseCommandBuilder && (
+            <DiagnoseCommandBuilder
+              artifacts={artifacts ?? []}
               onSelect={handleCommandSelect}
               onCancel={handleCommandCancel}
             />

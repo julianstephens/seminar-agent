@@ -436,6 +436,7 @@ const TutorialSessionRunner = () => {
           onSend={(message) => void handleSubmitTurn(message)}
           disabled={isTerminal}
           sessionKind={detail.kind}
+          artifacts={detail.artifacts ?? []}
         />
 
         {/* D. Completion controls */}

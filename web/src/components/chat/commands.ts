@@ -18,4 +18,8 @@ export const COMMANDS: Command[] = [
     description: "Evaluate the previous week's problem set",
     sessionKind: "extended",
   },
+  {
+    name: "/diagnose",
+    description: "Run a canonical diagnose on selected artifacts",
+  },
 ];

@@ -622,6 +622,16 @@ func (s *TutorialTurnService) SubmitTutorialTurn(
 		reviewPrevPS = prevPS
 	}
 
+	// Parse command options for /diagnose.
+	var diagnoseCmdOpts *diagnoseCommandOptions
+	if cmd == tutorialCommandDiagnose {
+		opts, err := parseDiagnoseCommandOptions(text)
+		if err != nil {
+			return nil, err
+		}
+		diagnoseCmdOpts = &opts
+	}
+
 	// Create the user turn.
 	userTurn := domain.TutorialTurn{
 		SessionID: sessionID,
@@ -694,6 +704,37 @@ func (s *TutorialTurnService) SubmitTutorialTurn(
 		artifacts = []domain.Artifact{} // Continue with empty artifacts
 	}
 
+	// For /diagnose command: filter artifacts to the requested subset.
+	// Security: only IDs that were returned by the session-scoped fetch are allowed.
+	if diagnoseCmdOpts != nil && len(diagnoseCmdOpts.ArtifactIDs) > 0 {
+		// Build a set of valid session artifact IDs for O(1) lookup.
+		validIDs := make(map[string]bool, len(artifacts))
+		for _, a := range artifacts {
+			validIDs[a.ID] = true
+		}
+		// Validate every requested ID before filtering.
+		for _, requestedID := range diagnoseCmdOpts.ArtifactIDs {
+			if !validIDs[requestedID] {
+				return nil, &ValidationError{
+					Field:   "text",
+					Message: fmt.Sprintf("artifact %q not found in this session", requestedID),
+				}
+			}
+		}
+		// Filter to the requested subset.
+		requested := make(map[string]bool, len(diagnoseCmdOpts.ArtifactIDs))
+		for _, id := range diagnoseCmdOpts.ArtifactIDs {
+			requested[id] = true
+		}
+		filtered := make([]domain.Artifact, 0, len(diagnoseCmdOpts.ArtifactIDs))
+		for _, a := range artifacts {
+			if requested[a.ID] {
+				filtered = append(filtered, a)
+			}
+		}
+		artifacts = filtered
+	}
+
 	// Format artifacts for the prompt.
 	artifactsText := formatArtifacts(artifacts)
 
@@ -716,7 +757,10 @@ func (s *TutorialTurnService) SubmitTutorialTurn(
 	var priorDiagnosticsSummary string
 	var problemSetResponseText string
 
-	if cmd == tutorialCommandProblemSet {
+	if cmd == tutorialCommandDiagnose {
+		// /diagnose always uses review_only (canonical review, no problem set generation).
+		taskMode = "review_only"
+	} else if cmd == tutorialCommandProblemSet {
 		// Explicit command: always generate a new problem set.
 		taskMode = "problemset_generation"
 	} else if cmd == tutorialCommandReviewProblemSet {
@@ -1262,6 +1306,7 @@ const (
 	tutorialCommandNone             tutorialCommand = iota
 	tutorialCommandProblemSet                       // /problem-set
 	tutorialCommandReviewProblemSet                 // /review-problem-set
+	tutorialCommandDiagnose                         // /diagnose
 )
 
 // problemSetCommandOptions holds parsed options for the /problem-set command.
@@ -1307,6 +1352,9 @@ func parseAndValidateTutorialCommand(text string, sess *domain.TutorialSession) 
 			}
 		}
 		return tutorialCommandReviewProblemSet, nil
+	case "/diagnose":
+		// Available for both diagnostic and extended session kinds.
+		return tutorialCommandDiagnose, nil
 	default:
 		return tutorialCommandNone, &ValidationError{
 			Field:   "text",
@@ -1462,6 +1510,56 @@ func parseReviewProblemSetCommandOptions(text string) (reviewProblemSetCommandOp
 			return opts, &ValidationError{
 				Field:   "text",
 				Message: fmt.Sprintf("unknown /review-problem-set option: /%s", optName),
+			}
+		}
+	}
+
+	return opts, nil
+}
+
+// diagnoseCommandOptions holds parsed options for the /diagnose command.
+type diagnoseCommandOptions struct {
+	ArtifactIDs []string // IDs of artifacts to include; empty = all
+}
+
+// parseDiagnoseCommandOptions parses options from a /diagnose command string.
+// Supports: /artifacts id1,id2,... (comma-separated list of artifact IDs)
+func parseDiagnoseCommandOptions(text string) (diagnoseCommandOptions, error) {
+	opts := diagnoseCommandOptions{}
+
+	fields := strings.Fields(strings.TrimSpace(text))
+	if len(fields) == 0 || fields[0] != "/diagnose" {
+		return opts, fmt.Errorf("text is not a /diagnose command")
+	}
+
+	for i := 1; i < len(fields); i++ {
+		opt := fields[i]
+		if !strings.HasPrefix(opt, "/") {
+			continue
+		}
+
+		optName := opt[1:]
+		switch optName {
+		case "artifacts":
+			if i+1 >= len(fields) {
+				return opts, &ValidationError{
+					Field:   "text",
+					Message: "/artifacts option requires a value (e.g., /artifacts id1,id2)",
+				}
+			}
+			i++
+			raw := fields[i]
+			for _, id := range strings.Split(raw, ",") {
+				id = strings.TrimSpace(id)
+				if id != "" {
+					opts.ArtifactIDs = append(opts.ArtifactIDs, id)
+				}
+			}
+
+		default:
+			return opts, &ValidationError{
+				Field:   "text",
+				Message: fmt.Sprintf("unknown /diagnose option: /%s", optName),
 			}
 		}
 	}
