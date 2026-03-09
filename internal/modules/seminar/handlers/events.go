@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -60,7 +61,16 @@ func (h *EventsHandler) Stream(c *gin.Context) {
 	c.Header("X-Accel-Buffering", "no") // disable nginx buffering
 
 	// Subscribe to the hub before flushing headers so no events are missed.
-	events, unsub := h.hub.Subscribe(sessionID, ownerSub)
+	events, unsub, err := h.hub.Subscribe(sessionID, ownerSub)
+	if err != nil {
+		if errors.Is(err, sse.ErrTooManySubscribers) {
+			apphttp.Fail(c, http.StatusTooManyRequests, "too_many_subscribers",
+				"Too many concurrent connections for this session")
+		} else {
+			apphttp.Fail(c, http.StatusInternalServerError, "subscribe_error", err.Error())
+		}
+		return
+	}
 	defer unsub()
 
 	// Flush headers immediately so the browser receives the streaming response.

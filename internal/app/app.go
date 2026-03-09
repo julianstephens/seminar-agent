@@ -16,6 +16,7 @@ import (
 	// Shared infrastructure
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/julianstephens/formation/internal/agent"
 	"github.com/julianstephens/formation/internal/agent/providers"
@@ -99,7 +100,18 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 	logger.Info("scheduler ready")
 
 	// 6. Create the SSE hub and connect it to the scheduler.
-	hub := sse.New(logger)
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     fmt.Sprintf("%s:%d", cfg.RedisHost, cfg.RedisPort),
+		Username: cfg.RedisUser,
+		Password: cfg.RedisPassword,
+	})
+	if err := rdb.Ping(ctx).Err(); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("redis ping: %w", err)
+	}
+	logger.Info("redis ready")
+
+	hub := sse.New(logger, rdb, cfg.RedisPrefix)
 	sched.SetOnPhaseChanged(hub.PublishPhaseChanged)
 	sched.SetOnTurnAdded(hub.PublishTurnAdded)
 	logger.Info("sse hub ready")

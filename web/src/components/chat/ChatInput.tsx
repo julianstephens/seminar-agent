@@ -44,6 +44,7 @@ export function ChatInput({
       return [];
     const query = message.toLowerCase();
     return COMMANDS.filter((cmd) => {
+      if (cmd.tutorialOnly && sessionKind === undefined) return false;
       if (cmd.sessionKind && cmd.sessionKind !== sessionKind) return false;
       return cmd.name.startsWith(query);
     });

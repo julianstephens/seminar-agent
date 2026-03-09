@@ -77,6 +77,9 @@ func (s *TurnService) SubmitTurn(
 	if strings.TrimSpace(p.Text) == "" {
 		return nil, &ValidationError{Field: "text", Message: "must not be blank"}
 	}
+	if strings.HasPrefix(strings.TrimSpace(p.Text), "/diagnose") {
+		return nil, &ValidationError{Field: "text", Message: "/diagnose is not available in seminar sessions"}
+	}
 
 	// 1. Load session and assert the turn is allowed.
 	sess, err := s.sessions.GetByID(ctx, sessionID, ownerSub)

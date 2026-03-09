@@ -5,6 +5,8 @@ export interface Command {
   description: string;
   /** If set, the command is only available for this session kind. */
   sessionKind?: TutorialSessionKind;
+  /** If true, the command is only available in tutorial sessions, not seminar sessions. */
+  tutorialOnly?: boolean;
 }
 
 export const COMMANDS: Command[] = [
@@ -21,5 +23,6 @@ export const COMMANDS: Command[] = [
   {
     name: "/diagnose",
     description: "Run a canonical diagnose on selected artifacts",
+    tutorialOnly: true,
   },
 ];

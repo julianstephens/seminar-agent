@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/julianstephens/formation/internal/auth"
 	"github.com/julianstephens/formation/internal/config"
@@ -94,6 +95,9 @@ func NewRouter(deps RouterDeps) *gin.Engine {
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "time": time.Now().UTC()})
 	})
+
+	// ── Metrics ───────────────────────────────────────────────────────────────
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// ── API v1 ────────────────────────────────────────────────────────────────
 	v1 := r.Group("/v1")

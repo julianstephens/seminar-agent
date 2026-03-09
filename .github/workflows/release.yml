@@ -43,6 +43,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          target: runner
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_API }}:latest

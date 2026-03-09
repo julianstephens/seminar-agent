@@ -34,6 +34,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: dev
     ports:
       - "8080:8080"
     env_file: backend.env
@@ -44,6 +45,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./:/app
 
   web:
     container_name: formation_web

@@ -1,0 +1,7 @@
+#:schema https://json.schemastore.org/any.json
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "CGO_ENABLED=0 GOOS=linux go build -ldflags='-s -w' -o ./tmp/main ./cmd/api"
+entrypoint = ["./tmp/main"]

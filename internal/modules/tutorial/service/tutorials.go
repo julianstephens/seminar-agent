@@ -886,7 +886,9 @@ func (s *TutorialTurnService) SubmitTutorialTurn(
 		return result, fmt.Errorf("create agent turn: %w", err)
 	}
 
-	// Note: We emit turn_added SSE for agent turn only after confirming agent call succeeds
+	// Emit turn_added for the empty agent turn so the frontend knows a response
+	// is coming regardless of whether we stream or fetch in one shot.
+	s.hub.PublishTutorialTurnAdded(agentCreated)
 
 	// Call the agent with or without streaming.
 	var agentText string
@@ -897,9 +899,6 @@ func (s *TutorialTurnService) SubmitTutorialTurn(
 			"session_id", sessionID,
 			"turn_id", agentCreated.ID,
 		)
-
-		// Emit initial turn_added SSE for agent turn before streaming starts.
-		s.hub.PublishTutorialTurnAdded(agentCreated)
 
 		// Use streaming mode: publish chunks as they arrive.
 		chunkCount := 0
@@ -977,8 +976,6 @@ func (s *TutorialTurnService) SubmitTutorialTurn(
 			return result, nil // Return user turn even if agent call fails
 		}
 
-		// Emit turn_added SSE for agent turn now that we have the response.
-		s.hub.PublishTutorialTurnAdded(agentCreated)
 	}
 
 	// ── Parse and persist diagnostic entries ──
@@ -1191,13 +1188,18 @@ func (s *TutorialTurnService) SubmitTutorialTurn(
 		return result, fmt.Errorf("update agent turn: %w", err)
 	}
 
-	// Emit final chunk with complete text if streaming was enabled.
+	// Emit the final agent_response_chunk signal.
+	// Streaming: an empty chunk with is_final=true signals the stream is done.
+	// Non-streaming: the full text is delivered as a single final chunk so the
+	// frontend receives the content without polling.
 	if s.enableStreaming {
 		logger.Info("sending final stream chunk",
 			"session_id", sessionID,
 			"turn_id", agentCreated.ID,
 		)
 		s.hub.PublishAgentResponseChunk(sessionID, agentCreated.ID, "", true)
+	} else {
+		s.hub.PublishAgentResponseChunk(sessionID, agentCreated.ID, agentTextStripped, true)
 	}
 
 	result.AgentTurn = agentCreated

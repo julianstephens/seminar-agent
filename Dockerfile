@@ -9,6 +9,21 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o bin/formation ./cmd/api
 
+# ── Dev stage ───────────────────────────────────────────────────────────────
+FROM golang:1.25-alpine AS dev
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+RUN go install github.com/air-verse/air@latest
+
+EXPOSE 8080
+
+CMD ["air", "-c", ".air.toml"]
+
+
 # ── Run stage ─────────────────────────────────────────────────────────────────
 FROM alpine:3.21 AS runner
 
